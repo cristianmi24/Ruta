@@ -1,12 +1,13 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Sparkles, Lock, ShieldCheck, LogOut, KeyRound, Clapperboard, Home, Layers, Library, Route } from 'lucide-react';
 import { storageService, AppUser } from '../services/storageService';
+import type { View } from '../routes';
 import { LabSIELogo } from './LabSIELogo';
 import { EduTLANLogo } from './EduTLANLogo';
 
 interface HeaderProps {
-  currentView: 'welcome' | 'lineas' | 'test' | 'heritage' | 'results' | 'admin' | 'animacion';
-  onNavigate: (view: 'welcome' | 'lineas' | 'test' | 'heritage' | 'results' | 'admin' | 'animacion') => void;
+  currentView: View;
+  onNavigate: (view: View) => void;
   currentUser: AppUser;
   isTestUnlocked?: boolean;
   onOpenWelcomeModal?: () => void;
@@ -26,6 +27,19 @@ export const Header: React.FC<HeaderProps> = ({
   onDeactivateRoute
 }) => {
   const isAdmin = currentUser.role === 'admin';
+  const headerRef = useRef<HTMLElement>(null);
+
+  // Publica la altura del encabezado para que otros menús fijos se ubiquen justo debajo
+  useEffect(() => {
+    const el = headerRef.current;
+    if (!el) return;
+    const update = () => document.documentElement.style.setProperty('--header-h', `${el.offsetHeight}px`);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const inAdmin = currentView === 'admin';
 
   const handleAdminClick = () => {
     if (isAdmin) {
@@ -86,7 +100,7 @@ export const Header: React.FC<HeaderProps> = ({
     ));
 
   return (
-    <header className="sticky top-0 z-40 bg-[#FFFDF9]/95 backdrop-blur-md border-b-2 border-[#E8D5B5] px-3 sm:px-6 md:px-8 py-2.5 transition-all shadow-xs">
+    <header ref={headerRef} className="sticky top-0 z-40 bg-[#FFFDF9]/95 backdrop-blur-md border-b-2 border-[#E8D5B5] px-3 sm:px-6 md:px-8 py-2.5 transition-all shadow-xs">
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 sm:gap-4">
         {/* Zone 1: Brand Zone con AMBOS Logos Oficiales (LabSIE y EduTLAN) */}
         <button
@@ -113,92 +127,98 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </button>
 
-        {/* Zone 2: Navegación principal (escritorio) */}
-        <nav aria-label="Secciones" className="hidden xl:flex items-center gap-1 p-1 rounded-full bg-[#FFFDF9] border border-[#E8D5B5]">
-          {renderNav(false)}
-        </nav>
+        {inAdmin ? (
+          /* En coordinación: solo el menú del panel; aquí únicamente volver al sitio */
+          <button
+            onClick={() => onNavigate('welcome')}
+            className="cursor-pointer inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border-2 border-[#E8D5B5] bg-[#FFFDF9] text-xs sm:text-sm font-bold text-[#2D1A0B] hover:border-[#059669] hover:text-[#047857] transition-colors whitespace-nowrap"
+          >
+            <Home className="w-4 h-4" /> Volver al sitio
+          </button>
+        ) : (
+          <>
+          {/* Zone 2: Navegación principal (escritorio) */}
+          <nav aria-label="Secciones" className="hidden xl:flex items-center gap-1 p-1 rounded-full bg-[#FFFDF9] border border-[#E8D5B5]">
+            {renderNav(false)}
+          </nav>
 
-        {/* Zone 3: Acciones principales (Único botón de Coordinador + Botón de Test) */}
-        <div className="flex items-center gap-2 sm:gap-2.5">
-          {/* Botón único de Acceso / Gestión de Coordinación */}
-          {isAdmin ? (
-            <div className="flex items-center gap-1.5">
+          {/* Zone 3: Acciones principales (Único botón de Coordinador + Botón de Test) */}
+          <div className="flex items-center gap-2 sm:gap-2.5">
+            {/* Botón único de Acceso / Gestión de Coordinación */}
+            {isAdmin ? (
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => onNavigate('admin')}
+                  className="cursor-pointer text-xs font-bold px-3 py-2 rounded-xl border-2 transition-all flex items-center gap-1.5 shadow-xs bg-[#ECFDF5] text-[#065F46] border-[#A7F3D0] hover:bg-[#D1FAE5]"
+                  title="Ir al panel de coordinación"
+                >
+                  <ShieldCheck className="w-4 h-4 text-[#059669]" />
+                  <span className="hidden sm:inline">Panel Coordinador</span>
+                  <span className="sm:hidden">Panel</span>
+                </button>
+                <button
+                  onClick={handleLogoutAdmin}
+                  className="cursor-pointer text-xs font-bold p-2 sm:px-2.5 sm:py-2 rounded-xl border border-red-300 bg-red-50 text-red-700 hover:bg-red-100 transition-colors flex items-center gap-1 shadow-xs"
+                  title="Cerrar sesión de coordinador"
+                >
+                  <LogOut className="w-3.5 h-3.5 text-red-600" />
+                  <span className="hidden sm:inline">Salir</span>
+                </button>
+              </div>
+            ) : (
               <button
-                onClick={() => onNavigate('admin')}
-                className={`cursor-pointer text-xs font-bold px-3 py-2 rounded-xl border-2 transition-all flex items-center gap-1.5 shadow-xs ${
-                  currentView === 'admin'
-                    ? 'bg-[#10B981] text-white border-[#10B981]'
-                    : 'bg-[#ECFDF5] text-[#065F46] border-[#A7F3D0] hover:bg-[#D1FAE5]'
+                onClick={handleAdminClick}
+                className="cursor-pointer text-xs font-bold px-3 sm:px-3.5 py-2 rounded-xl border-2 transition-all whitespace-nowrap shadow-xs flex items-center gap-1.5 sm:gap-2 border-[#CCD4CF] bg-[#FFFDF9] text-[#24302F] hover:bg-[#FAF8F5] hover:border-[#10B981] hover:text-[#059669]"
+                title="Acceso exclusivo para docentes y coordinación de LabSIE"
+              >
+                <KeyRound className="w-3.5 h-3.5 text-[#059669]" />
+                <span className="hidden sm:inline">Acceso Coordinador</span>
+                <span className="sm:hidden">Coordinador</span>
+              </button>
+            )}
+
+            {/* Botón principal de acción para estudiantes: Activar Ruta / Realizar Test */}
+            {currentView !== 'test' && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isTestUnlocked) {
+                    if (onOpenWelcomeModal) onOpenWelcomeModal();
+                  } else {
+                    onNavigate('test');
+                  }
+                }}
+                className={`cursor-pointer text-xs sm:text-sm font-bold px-3.5 sm:px-4 py-2 rounded-xl transition-all whitespace-nowrap shadow-sm border-2 items-center gap-1.5 ${isAdmin ? 'hidden sm:flex' : 'flex'} ${
+                  isTestUnlocked
+                    ? 'bg-[#10B981] text-[#FFFDF9] hover:bg-[#059669] border-[#10B981]'
+                    : 'bg-[#059669] text-[#FFFDF9] hover:bg-[#047857] border-[#059669]'
                 }`}
-                title="Ir al panel de coordinación"
+                title={isTestUnlocked ? 'Comenzar Test Vocacional' : 'Abrir invitación al semillero y activar ruta'}
               >
-                <ShieldCheck className="w-4 h-4 text-[#059669]" />
-                <span className="hidden sm:inline">Panel Coordinador</span>
-                <span className="sm:hidden">Panel</span>
+                {!isTestUnlocked ? (
+                  <>
+                    <Sparkles className="w-3.5 h-3.5 text-[#FEF3C7]" />
+                    <span>Activar Ruta</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-3.5 h-3.5 text-[#FFFDF9]" />
+                    <span>Realizar Test</span>
+                  </>
+                )}
               </button>
-              <button
-                onClick={handleLogoutAdmin}
-                className="cursor-pointer text-xs font-bold p-2 sm:px-2.5 sm:py-2 rounded-xl border border-red-300 bg-red-50 text-red-700 hover:bg-red-100 transition-colors flex items-center gap-1 shadow-xs"
-                title="Cerrar sesión de coordinador"
-              >
-                <LogOut className="w-3.5 h-3.5 text-red-600" />
-                <span className="hidden sm:inline">Salir</span>
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={handleAdminClick}
-              className={`cursor-pointer text-xs font-bold px-3 sm:px-3.5 py-2 rounded-xl border-2 transition-all whitespace-nowrap shadow-xs flex items-center gap-1.5 sm:gap-2 ${
-                currentView === 'admin'
-                  ? 'bg-[#10B981] text-[#FFFDF9] border-[#10B981]'
-                  : 'border-[#CCD4CF] bg-[#FFFDF9] text-[#24302F] hover:bg-[#FAF8F5] hover:border-[#10B981] hover:text-[#059669]'
-              }`}
-              title="Acceso exclusivo para docentes y coordinación de LabSIE"
-            >
-              <KeyRound className="w-3.5 h-3.5 text-[#059669]" />
-              <span className="hidden sm:inline">Acceso Coordinador</span>
-              <span className="sm:hidden">Coordinador</span>
-            </button>
-          )}
-
-          {/* Botón principal de acción para estudiantes: Activar Ruta / Realizar Test */}
-          {currentView !== 'test' && (
-            <button
-              type="button"
-              onClick={() => {
-                if (!isTestUnlocked) {
-                  if (onOpenWelcomeModal) onOpenWelcomeModal();
-                } else {
-                  onNavigate('test');
-                }
-              }}
-              className={`cursor-pointer text-xs sm:text-sm font-bold px-3.5 sm:px-4 py-2 rounded-xl transition-all whitespace-nowrap shadow-sm border-2 items-center gap-1.5 ${isAdmin ? 'hidden sm:flex' : 'flex'} ${
-                isTestUnlocked
-                  ? 'bg-[#10B981] text-[#FFFDF9] hover:bg-[#059669] border-[#10B981]'
-                  : 'bg-[#059669] text-[#FFFDF9] hover:bg-[#047857] border-[#059669]'
-              }`}
-              title={isTestUnlocked ? 'Comenzar Test Vocacional' : 'Abrir invitación al semillero y activar ruta'}
-            >
-              {!isTestUnlocked ? (
-                <>
-                  <Sparkles className="w-3.5 h-3.5 text-[#FEF3C7]" />
-                  <span>Activar Ruta</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-3.5 h-3.5 text-[#FFFDF9]" />
-                  <span>Realizar Test</span>
-                </>
-              )}
-            </button>
-          )}
-        </div>
+            )}
+          </div>
+          </>
+        )}
       </div>
 
       {/* Navegación en celulares y tabletas */}
-      <nav aria-label="Navegación principal" className="xl:hidden mt-2 -mx-1 px-1 pb-0.5 flex items-center gap-2 overflow-x-auto [scrollbar-width:none]">
-        {renderNav(true)}
-      </nav>
+      {!inAdmin && (
+        <nav aria-label="Navegación principal" className="xl:hidden mt-2 -mx-1 px-1 pb-0.5 flex items-center gap-2 overflow-x-auto [scrollbar-width:none]">
+          {renderNav(true)}
+        </nav>
+      )}
     </header>
   );
 };

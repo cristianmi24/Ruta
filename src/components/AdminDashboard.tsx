@@ -43,6 +43,7 @@ import { LabSIELogo } from './LabSIELogo';
 import { EduTLANLogo } from './EduTLANLogo';
 import { CoordinatorsPanel } from './CoordinatorsPanel';
 import { AnalysisFullDetails } from './AnalysisFullDetails';
+import type { AdminTab } from '../routes';
 
 interface AdminDashboardProps {
   analyses: AnalysisResult[];
@@ -50,6 +51,9 @@ interface AdminDashboardProps {
   lines: ResearchLine[];
   onRefreshData: () => void;
   onExitAdmin?: () => void;
+  initialTab?: AdminTab;
+  initialStudentId?: string | null;
+  onRouteChange?: (tab: AdminTab, studentId: string | null) => void;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
@@ -57,9 +61,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   projects,
   lines,
   onRefreshData,
-  onExitAdmin
+  onExitAdmin,
+  initialTab = 'panorama',
+  initialStudentId = null,
+  onRouteChange
 }) => {
-  const [activeTab, setActiveTab] = useState<'panorama' | 'estudiantes' | 'proyectos' | 'lineas' | 'coordinadores'>('panorama');
+  const [activeTab, setActiveTab] = useState<AdminTab>(initialTab);
   const [selectedAnalysis, setSelectedAnalysis] = useState<AnalysisResult | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -91,6 +98,41 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   });
 
   const [isSavingReview, setIsSavingReview] = useState(false);
+
+  // URL → estado (al refrescar o con atrás/adelante)
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
+
+  // Estudiante pedido por la URL que aún no se ha podido abrir (los análisis cargan de forma asíncrona)
+  const pendingStudentRef = useRef<string | null>(initialStudentId);
+  useEffect(() => {
+    if (!initialStudentId) {
+      pendingStudentRef.current = null;
+      setSelectedAnalysis(null);
+      return;
+    }
+    if (selectedAnalysis?.id === initialStudentId) {
+      pendingStudentRef.current = null;
+      return;
+    }
+    pendingStudentRef.current = initialStudentId;
+    const found = analyses.find(a => a.id === initialStudentId);
+    if (found) {
+      handleSelectStudent(found);
+      pendingStudentRef.current = null;
+    } else if (analyses.length > 0) {
+      pendingStudentRef.current = null; // no existe: se queda en la lista
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialStudentId, analyses.length]);
+
+  // estado → URL
+  useEffect(() => {
+    if (pendingStudentRef.current) return;
+    onRouteChange?.(selectedAnalysis ? 'estudiantes' : activeTab, selectedAnalysis?.id ?? null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, selectedAnalysis?.id]);
 
   // Update Review Form when selecting a student
   const handleSelectStudent = (analysis: AnalysisResult) => {
@@ -241,177 +283,113 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     'cursor-pointer inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border-2 border-[#CCD4CF] bg-[#FFFDF9] text-[#1C2624] text-xs font-bold hover:border-[#10B981] hover:bg-[#ECFDF5] transition-colors whitespace-nowrap shrink-0';
   const pendingCount = analyses.filter(a => !a.adminReview || a.adminReview.status === 'PENDING').length;
 
+  const TABS: { id: AdminTab; label: string; count?: number }[] = [
+    { id: 'panorama', label: 'Panorama' },
+    { id: 'estudiantes', label: 'Estudiantes', count: analyses.length },
+    { id: 'proyectos', label: 'Proyectos', count: projects.length },
+    { id: 'lineas', label: 'Líneas', count: lines.length },
+    { id: 'coordinadores', label: 'Coordinadores' }
+  ];
+
   return (
-    <div className="max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-12 space-y-6 md:space-y-8">
-      {/* Migas de pan */}
-      <nav aria-label="Migas de pan" className="bg-[#FFFDF9]/95 border-2 border-[#CCD4CF] rounded-xl px-3 py-2 shadow-xs overflow-x-auto">
-        <ol className="flex items-center gap-1.5 text-xs font-semibold text-[#3F4E4C] whitespace-nowrap">
-          <li>
-            <button onClick={() => onExitAdmin?.()} className="cursor-pointer inline-flex items-center gap-1 hover:text-[#059669]">
-              <Home className="w-3.5 h-3.5" /> Inicio
-            </button>
-          </li>
-          <li aria-hidden="true"><ChevronRight className="w-3.5 h-3.5 text-[#9AA5A1]" /></li>
-          <li>
-            <button onClick={() => goToTab('panorama')} className="cursor-pointer hover:text-[#059669]">Coordinación</button>
-          </li>
-          <li aria-hidden="true"><ChevronRight className="w-3.5 h-3.5 text-[#9AA5A1]" /></li>
-          <li>
-            {selectedAnalysis ? (
-              <button onClick={() => setSelectedAnalysis(null)} className="cursor-pointer hover:text-[#059669]">Estudiantes</button>
-            ) : (
-              <span aria-current="page" className="text-[#059669] font-bold">{TAB_LABELS[activeTab]}</span>
-            )}
-          </li>
-          {selectedAnalysis && (
-            <>
-              <li aria-hidden="true"><ChevronRight className="w-3.5 h-3.5 text-[#9AA5A1]" /></li>
-              <li aria-current="page" className="text-[#059669] font-bold truncate max-w-[50vw]">
-                {selectedAnalysis.studentProfile.name}
-              </li>
-            </>
-          )}
-        </ol>
-      </nav>
-
-      {/* Atajos del perfil coordinador */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-[#FFFDF9]/95 border-2 border-[#CCD4CF] rounded-xl p-3 shadow-xs">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="p-1.5 rounded-lg bg-[#ECFDF5] border border-[#A7F3D0] text-[#059669] shrink-0">
-            <ShieldCheck className="w-4 h-4" />
-          </span>
-          <div className="min-w-0">
-            <span className="block text-[10px] uppercase tracking-wider font-bold text-[#059669]">Sesión de coordinación</span>
-            <span className="block text-xs font-bold text-[#1C2624] truncate">{storageService.getCurrentUser().email}</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 lg:pb-0">
-          <button onClick={() => goToTab('estudiantes')} className={shortcutBtn} title="Alt+2">
-            <Clock className="w-3.5 h-3.5 text-[#B45309]" /> Pendientes ({pendingCount})
-          </button>
-          <button
-            onClick={() => {
-              goToTab('estudiantes');
-              setTimeout(() => searchInputRef.current?.focus(), 50);
-            }}
-            className={shortcutBtn}
-            title="/"
-          >
-            <Search className="w-3.5 h-3.5 text-[#059669]" /> Buscar
-          </button>
-          <button
-            onClick={() => {
-              goToTab('proyectos');
-              setEditingProject(null);
-              setProjectModalOpen(true);
-            }}
-            className={shortcutBtn}
-            title="Alt+N"
-          >
-            <Plus className="w-3.5 h-3.5 text-[#059669]" /> Nuevo proyecto
-          </button>
-          <button onClick={handleRefresh} className={shortcutBtn} title="Recargar desde la base de datos">
-            <RefreshCw className={`w-3.5 h-3.5 text-[#0284C7] ${isRefreshing ? 'animate-spin' : ''}`} /> Sincronizar
-          </button>
-          <button onClick={handleLogout} className={`${shortcutBtn} hover:border-[#B65C5C] hover:bg-[#B65C5C]/10`}>
-            <LogOut className="w-3.5 h-3.5 text-[#B65C5C]" /> Cerrar sesión
-          </button>
-        </div>
-      </div>
-      <p className="hidden md:flex items-center gap-1.5 -mt-3 text-[11px] text-[#3F4E4C]">
-        <Keyboard className="w-3.5 h-3.5" />
-        Atajos: <kbd className="font-mono">Alt+1-5</kbd> pestañas · <kbd className="font-mono">Alt+N</kbd> nuevo proyecto ·{' '}
-        <kbd className="font-mono">/</kbd> buscar · <kbd className="font-mono">Esc</kbd> volver
-      </p>
-
-      {/* Admin Top Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-2xl bg-[#FFFDF9]/92 backdrop-blur-md border-2 border-[#CCD4CF] shadow-xs p-4 sm:p-5">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 min-w-0">
-          <div className="flex items-center gap-3">
-            <LabSIELogo size="sm" className="shrink-0" />
-            <div className="w-px h-8 bg-[#CCD4CF]" aria-hidden="true" />
-            <EduTLANLogo size="sm" showCategoryBadge={false} className="shrink-0" />
-          </div>
-          <div className="sm:border-l-2 border-[#CCD4CF] sm:pl-3 min-w-0">
-            <div className="flex flex-wrap items-center gap-x-2 text-[11px] sm:text-xs font-bold text-[#059669] uppercase tracking-wider">
-              <span>Semillero de Investigación LabSIE</span>
-              <span aria-hidden="true">·</span>
-              <span>Grupo EduTLAN (Categoría A MinCiencias)</span>
+    <div className="w-full">
+      {/* Menú de coordinación: único, fijo arriba y a todo el ancho */}
+      <div className="sticky z-30 bg-[#FFFDF9]/95 backdrop-blur-md border-b-2 border-[#E8D5B5] shadow-xs" style={{ top: 'var(--header-h, 64px)' }}>
+        <div className="w-full px-3 sm:px-6 lg:px-8 py-2.5 space-y-2.5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <nav aria-label="Migas de pan" className="min-w-0 overflow-x-auto">
+              <ol className="flex items-center gap-1.5 text-xs font-semibold text-[#3F4E4C] whitespace-nowrap">
+                <li>
+                  <button onClick={() => goToTab('panorama')} className="cursor-pointer inline-flex items-center gap-1.5 font-serif text-sm sm:text-base font-bold text-[#2D1A0B] hover:text-[#047857]">
+                    <ShieldCheck className="w-4 h-4 text-[#059669]" /> Coordinación
+                  </button>
+                </li>
+                <li aria-hidden="true"><ChevronRight className="w-3.5 h-3.5 text-[#9AA5A1]" /></li>
+                <li>
+                  {selectedAnalysis ? (
+                    <button onClick={() => setSelectedAnalysis(null)} className="cursor-pointer hover:text-[#059669]">Estudiantes</button>
+                  ) : (
+                    <span aria-current="page" className="text-[#059669] font-bold">{TAB_LABELS[activeTab]}</span>
+                  )}
+                </li>
+                {selectedAnalysis && (
+                  <>
+                    <li aria-hidden="true"><ChevronRight className="w-3.5 h-3.5 text-[#9AA5A1]" /></li>
+                    <li aria-current="page" className="text-[#059669] font-bold truncate max-w-[40vw]">{selectedAnalysis.studentProfile.name}</li>
+                  </>
+                )}
+              </ol>
+            </nav>
+            <div className="flex items-center gap-2">
+              <span className="hidden md:inline text-xs font-semibold text-[#3F4E4C] truncate max-w-[260px]">{storageService.getCurrentUser().email}</span>
+              <button onClick={handleRefresh} className={shortcutBtn} title="Recargar desde la base de datos">
+                <RefreshCw className={`w-3.5 h-3.5 text-[#0284C7] ${isRefreshing ? 'animate-spin' : ''}`} />
+                <span className="hidden sm:inline">Sincronizar</span>
+              </button>
+              <button onClick={handleLogout} className={`${shortcutBtn} hover:border-[#B65C5C] hover:bg-[#B65C5C]/10`} title="Cerrar sesión">
+                <LogOut className="w-3.5 h-3.5 text-[#B65C5C]" />
+                <span className="hidden sm:inline">Cerrar sesión</span>
+              </button>
             </div>
-            <h1 className="font-serif text-2xl md:text-3xl font-bold text-[#1C2624] mt-0.5" style={{ color: '#1C2624' }}>
-              Panel de Orientación & Vinculación
-            </h1>
-            <p className="text-xs md:text-sm text-[#3F4E4C] font-medium">
-              Gestión de postulaciones, validación de vinculación al semillero y asignación de proyectos.
-            </p>
           </div>
-        </div>
 
-        {/* Tab Navigation with clear contrast */}
-        <div className="flex items-center gap-1.5 p-1.5 bg-[#FFFDF9] border-2 border-[#CCD4CF] rounded-xl self-stretch md:self-auto overflow-x-auto shadow-xs max-w-full">
-          <button
-            onClick={() => {
-              setActiveTab('panorama');
-              setSelectedAnalysis(null);
-            }}
-            className={`cursor-pointer px-4 py-2 text-xs font-bold rounded-lg transition-colors whitespace-nowrap ${
-              activeTab === 'panorama' && !selectedAnalysis
-                ? 'bg-[#10B981] text-[#FFFDF9] shadow-xs'
-                : 'text-[#24302F] hover:bg-[#ECFDF5]'
-            }`}
-          >
-            Panorama
-          </button>
-          <button
-            onClick={() => {
-              setActiveTab('estudiantes');
-              setSelectedAnalysis(null);
-            }}
-            className={`cursor-pointer px-4 py-2 text-xs font-bold rounded-lg transition-colors whitespace-nowrap ${
-              activeTab === 'estudiantes' && !selectedAnalysis
-                ? 'bg-[#10B981] text-[#FFFDF9] shadow-xs'
-                : 'text-[#24302F] hover:bg-[#ECFDF5]'
-            }`}
-          >
-            Estudiantes ({analyses.length})
-          </button>
-          <button
-            onClick={() => {
-              setActiveTab('proyectos');
-              setSelectedAnalysis(null);
-            }}
-            className={`cursor-pointer px-4 py-2 text-xs font-bold rounded-lg transition-colors whitespace-nowrap ${
-              activeTab === 'proyectos'
-                ? 'bg-[#10B981] text-[#FFFDF9] shadow-xs'
-                : 'text-[#24302F] hover:bg-[#ECFDF5]'
-            }`}
-          >
-            Proyectos ({projects.length})
-          </button>
-          <button
-            onClick={() => {
-              setActiveTab('lineas');
-              setSelectedAnalysis(null);
-            }}
-            className={`cursor-pointer px-4 py-2 text-xs font-bold rounded-lg transition-colors whitespace-nowrap ${
-              activeTab === 'lineas'
-                ? 'bg-[#10B981] text-[#FFFDF9] shadow-xs'
-                : 'text-[#24302F] hover:bg-[#ECFDF5]'
-            }`}
-          >
-            Líneas ({lines.length})
-          </button>
-          <button
-            onClick={() => goToTab('coordinadores')}
-            className={`cursor-pointer px-4 py-2 text-xs font-bold rounded-lg transition-colors whitespace-nowrap ${
-              activeTab === 'coordinadores' ? 'bg-[#10B981] text-[#FFFDF9] shadow-xs' : 'text-[#24302F] hover:bg-[#ECFDF5]'
-            }`}
-          >
-            Coordinadores
-          </button>
+          <div className="flex items-center justify-between gap-3">
+            <div role="tablist" aria-label="Secciones de coordinación" className="flex items-center gap-1 overflow-x-auto [scrollbar-width:none] -mx-1 px-1">
+              {TABS.map((t, i) => {
+                const active = activeTab === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    role="tab"
+                    aria-selected={active}
+                    onClick={() => goToTab(t.id)}
+                    title={`Alt+${i + 1}`}
+                    className={`cursor-pointer shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs sm:text-sm font-bold transition-colors ${
+                      active ? 'bg-[#059669] text-[#FFFDF9] shadow-sm' : 'text-[#2D1A0B] hover:bg-[#FAF3E6]'
+                    }`}
+                  >
+                    {t.label}
+                    {t.count !== undefined && (
+                      <span className={`px-1.5 rounded-full text-[10px] ${active ? 'bg-[#FFFDF9]/25' : 'bg-[#FAF3E6] text-[#7A4D27]'}`}>{t.count}</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="hidden lg:flex items-center gap-2 shrink-0">
+              <button onClick={() => goToTab('estudiantes')} className={shortcutBtn} title="Estudiantes sin revisar">
+                <Clock className="w-3.5 h-3.5 text-[#B45309]" /> Pendientes ({pendingCount})
+              </button>
+              <button
+                onClick={() => {
+                  goToTab('estudiantes');
+                  setTimeout(() => searchInputRef.current?.focus(), 50);
+                }}
+                className={shortcutBtn}
+                title="/"
+              >
+                <Search className="w-3.5 h-3.5 text-[#059669]" /> Buscar
+              </button>
+              <button
+                onClick={() => {
+                  goToTab('proyectos');
+                  setEditingProject(null);
+                  setProjectModalOpen(true);
+                }}
+                className={shortcutBtn}
+                title="Alt+N"
+              >
+                <Plus className="w-3.5 h-3.5 text-[#059669]" /> Nuevo proyecto
+              </button>
+              <span className="hidden xl:inline-flex items-center gap-1 text-[11px] text-[#7A4D27]" title="Atajos: Alt+1-5 pestañas · Alt+N nuevo proyecto · / buscar · Esc volver">
+                <Keyboard className="w-3.5 h-3.5" /> Alt+1-5
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
+      <div className="w-full px-3 sm:px-6 lg:px-8 py-6 md:py-8 space-y-6 md:space-y-8">
       {/* DETAIL VIEW: When a student is selected */}
       {selectedAnalysis ? (
         <div className="space-y-6">
@@ -1389,6 +1367,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           onClose={() => setLineModalOpen(false)}
         />
       )}
+      </div>
     </div>
   );
 };

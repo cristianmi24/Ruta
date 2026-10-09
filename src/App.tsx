@@ -20,6 +20,7 @@ import { storageService, AppUser } from './services/storageService';
 import { fetchAnalyses } from './services/apiClient';
 import { revealProfilePII } from './services/dataProtection';
 import { ResearchProject, ResearchLine, AnalysisResult } from './types';
+import { AdminTab, View, buildPath, navigateTo, parseRoute } from './routes';
 
 // Descifra correo y teléfono solo en memoria, para mostrarlos en pantalla y en los reportes
 async function revealAnalyses(list: AnalysisResult[]): Promise<AnalysisResult[]> {
@@ -32,7 +33,23 @@ async function revealAnalyses(list: AnalysisResult[]): Promise<AnalysisResult[]>
 }
 
 export default function App() {
-  const [currentView, setCurrentView] = useState<'welcome' | 'lineas' | 'test' | 'heritage' | 'results' | 'admin' | 'animacion'>('welcome');
+  const initialRoute = parseRoute();
+  const [currentView, setView] = useState<View>(initialRoute.view);
+  const [adminTab, setAdminTab] = useState<AdminTab>(initialRoute.adminTab);
+  const [adminStudentId, setAdminStudentId] = useState<string | null>(initialRoute.studentId);
+  const [sessionChecked, setSessionChecked] = useState(false);
+
+  /** Cambia de sección y actualiza la URL (al refrescar se queda en la misma). */
+  const setCurrentView = (view: View, replace = false) => {
+    setView(view);
+    navigateTo(buildPath(view, view === 'admin' ? adminTab : undefined, view === 'admin' ? adminStudentId : null), replace);
+  };
+
+  const handleAdminRouteChange = (tab: AdminTab, studentId: string | null) => {
+    setAdminTab(tab);
+    setAdminStudentId(studentId);
+    navigateTo(buildPath('admin', tab, studentId));
+  };
   const [projects, setProjects] = useState<ResearchProject[]>([]);
   const [lines, setLines] = useState<ResearchLine[]>([]);
   const [analyses, setAnalyses] = useState<AnalysisResult[]>([]);
@@ -41,7 +58,7 @@ export default function App() {
   const [celebrationKey, setCelebrationKey] = useState<number | null>(null);
 
   // Semillero affiliation and popup modal state
-  const [isTestUnlocked, setIsTestUnlocked] = useState<boolean>(false);
+  const [isTestUnlocked, setIsTestUnlocked] = useState<boolean>(storageService.isTestUnlocked());
   const [isWelcomeModalOpen, setIsWelcomeModalOpen] = useState<boolean>(false);
   const [welcomeModalMode, setWelcomeModalMode] = useState<'welcome' | 'locked-attempt'>('welcome');
   const [isAdminAuthModalOpen, setIsAdminAuthModalOpen] = useState<boolean>(false);
@@ -70,11 +87,31 @@ export default function App() {
   };
 
   useEffect(() => {
-    storageService.restoreCoordinatorSession().finally(() => loadData());
+    storageService.restoreCoordinatorSession().finally(() => {
+      setSessionChecked(true);
+      loadData();
+      // Si se refrescó en /coordinacion sin sesión válida, se pide iniciar sesión
+      if (parseRoute().view === 'admin' && !storageService.isAdminAuthenticated()) {
+        setView('welcome');
+        navigateTo('/', true);
+        setIsAdminAuthModalOpen(true);
+      }
+    });
     const unsubscribe = storageService.subscribe(() => {
       loadData();
     });
-    return () => unsubscribe();
+    // Botones atrás/adelante del navegador
+    const onPop = () => {
+      const r = parseRoute();
+      setView(r.view);
+      setAdminTab(r.adminTab);
+      setAdminStudentId(r.studentId);
+    };
+    window.addEventListener('popstate', onPop);
+    return () => {
+      unsubscribe();
+      window.removeEventListener('popstate', onPop);
+    };
   }, []);
 
   const handleTestComplete = (result: AnalysisResult) => {
@@ -118,7 +155,7 @@ export default function App() {
   };
 
   // Direct navigation with role separation protection
-  const handleNavigate = (view: 'welcome' | 'lineas' | 'test' | 'heritage' | 'results' | 'admin' | 'animacion') => {
+  const handleNavigate = (view: View) => {
     if (view === 'admin') {
       if (!storageService.isAdminAuthenticated()) {
         setIsAdminAuthModalOpen(true);
@@ -153,7 +190,7 @@ export default function App() {
   }
 
   return (
-    <PixelOffice plain={currentView === 'test'}>
+    <PixelOffice plain={currentView === 'test' ? '#FFFFFF' : currentView === 'admin' ? '#FFFDF9' : undefined}>
     <div className="min-h-screen flex flex-col text-[#24302F] relative overflow-x-clip">
 
       {/* 3-Zone Header Contract with Route Activation Menu */}
@@ -219,6 +256,17 @@ export default function App() {
           />
         )}
 
+        {currentView === 'results' && !activeAnalysis && (
+          <div className="max-w-xl mx-auto px-4 py-16 text-center">
+            <div className="rounded-2xl bg-[#FFFDF9] border-2 border-[#CCD4CF] p-8 space-y-4">
+              <p className="font-serif text-xl font-bold text-[#1C2624]">Aún no tienes un reporte en este navegador</p>
+              <button onClick={() => handleNavigate('test')} className="cursor-pointer px-5 py-2.5 rounded-xl bg-[#059669] text-[#FFFDF9] text-sm font-bold">
+                Ir a mi ruta
+              </button>
+            </div>
+          </div>
+        )}
+
         {currentView === 'results' && activeAnalysis && (
           <ResultsView
             analysis={activeAnalysis}
@@ -227,8 +275,11 @@ export default function App() {
           />
         )}
 
-        {currentView === 'admin' && (
+        {currentView === 'admin' && storageService.isAdminAuthenticated() && (
           <AdminDashboard
+            initialTab={adminTab}
+            initialStudentId={adminStudentId}
+            onRouteChange={handleAdminRouteChange}
             analyses={analyses}
             projects={projects}
             lines={lines}

@@ -310,7 +310,8 @@ const BLD: [number, number, number, number][] = [
   [33, 6, 7, 6]
 ];
 
-export default function PixelOffice({ children, plain = false }: { children?: ReactNode; plain?: boolean }) {
+/** `plain`: color de fondo liso en lugar de la escena animada (formulario del test, panel de coordinación). */
+export default function PixelOffice({ children, plain }: { children?: ReactNode; plain?: string }) {
   const bits = useMemo(
     () =>
       Array.from({ length: 18 }, (_, i) => ({
@@ -323,7 +324,7 @@ export default function PixelOffice({ children, plain = false }: { children?: Re
     []
   );
   return (
-    <div className={plain ? 'po po-plain' : 'po'}>
+    <div className={plain ? 'po po-plain' : 'po'} style={plain ? { background: plain } : undefined}>
       <style>{css}</style>
       {!plain && (
       <div className="po-scene" aria-hidden="true">
@@ -405,7 +406,6 @@ const css = `
 @import url('https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&display=swap');
 .po{position:relative;width:100%;min-height:100vh;isolation:isolate}
 .po *{box-sizing:border-box}
-.po-plain{background:#fff}
 .po-scene{--u0:clamp(3.6px,.5vw + 1.6px,8px);--u:var(--u0);position:fixed;inset:0;z-index:0;overflow:hidden;background:#fff;font-family:'Silkscreen','Courier New',monospace;pointer-events:none}
 .po-scene .hp{pointer-events:auto}
 .wall{position:absolute;inset:0 0 42% 0;z-index:0;background:
