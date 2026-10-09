@@ -1,6 +1,7 @@
 import React from 'react';
 import { Sparkles, ClipboardList, Compass, Layers, Heart } from 'lucide-react';
 import { AnalysisResult, ResearchProject } from '../types';
+import { CLOSING_MESSAGE } from '../data/closingMessage';
 
 /** Para coordinación: todo lo que respondió el estudiante y el reporte completo generado por Qwen. */
 export const AnalysisFullDetails: React.FC<{ analysis: AnalysisResult; projects: ResearchProject[] }> = ({ analysis, projects }) => {
@@ -148,6 +149,20 @@ export const AnalysisFullDetails: React.FC<{ analysis: AnalysisResult; projects:
           {q.closingNote && <p className="text-sm italic font-serif text-[#24302F]">{q.closingNote}</p>}
         </section>
       )}
+
+      {/* Mensaje final que también recibió el estudiante */}
+      <section className="rounded-2xl border-2 border-[#E8D5B5] bg-[#FAF3E6] p-5 sm:p-6 space-y-3">
+        <p className="text-[11px] font-bold uppercase tracking-wider text-[#047857]">{CLOSING_MESSAGE.kicker}</p>
+        <h3 className="font-serif text-lg font-bold text-[#2D1A0B]">{CLOSING_MESSAGE.title}</h3>
+        <div className="space-y-2.5 font-serif text-sm text-[#24302F] leading-relaxed">
+          <p>{CLOSING_MESSAGE.intro}</p>
+          <blockquote className="border-l-4 border-[#10B981] pl-3 italic text-[#065F46]">{CLOSING_MESSAGE.quote}</blockquote>
+          {CLOSING_MESSAGE.paragraphs.map((x, i) => (
+            <p key={i}>{x}</p>
+          ))}
+          <p className="font-bold text-[#1C2624]">{CLOSING_MESSAGE.closing}</p>
+        </div>
+      </section>
 
       {/* Todas las respuestas */}
       <section className="rounded-2xl border-2 border-[#CCD4CF] bg-[#FFFDF9] p-5 sm:p-6 space-y-3">

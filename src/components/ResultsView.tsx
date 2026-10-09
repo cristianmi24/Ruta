@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import { AnalysisResult, RouteType, AnalysisPerspective, ProposedProjectOption } from '../types';
 import { generatePDFReport, generateDOCXReport } from '../services/documentGenerator';
+import { CLOSING_MESSAGE } from '../data/closingMessage';
 import { getProjectMethodology } from '../data/projectMetadata';
 import { storageService } from '../services/storageService';
 import { LabSIELogo } from './LabSIELogo';
@@ -1080,37 +1081,18 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
         <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-[#10B981] via-[#ffcf3f] to-[#ff5d8f]" aria-hidden="true" />
         <div className="max-w-2xl mx-auto space-y-5 text-[#24302F]">
           <div className="text-center space-y-1">
-            <span className="text-[11px] uppercase tracking-wider font-bold text-[#059669]">Antes de irte, lee esto</span>
+            <span className="text-[11px] uppercase tracking-wider font-bold text-[#059669]">{CLOSING_MESSAGE.kicker}</span>
             <h3 id="before-you-go-title" className="font-serif text-2xl sm:text-3xl font-bold text-[#1C2624] text-balance">
-              Investigar es aprender a caer, levantarse y volver a intentarlo mejor.
+              {CLOSING_MESSAGE.title}
             </h3>
           </div>
           <div className="space-y-4 font-serif text-sm sm:text-base leading-relaxed">
-            <p>
-              Si decides emprender este camino con nosotros, recuerda que la investigación no siempre tendrá respuestas fáciles; habrá
-              preguntas sin resolver, errores, desafíos y momentos en los que sentirás que debes empezar de nuevo. Pero, como escribió
-              Samuel Beckett:
-            </p>
-            <blockquote className="border-l-4 border-[#10B981] pl-4 italic text-[#065F46]">
-              «Lo intentaste. Fracasaste. No importa. Inténtalo de nuevo. Fracasa de nuevo. Fracasa mejor».
-            </blockquote>
-            <p>
-              Porque en la investigación, cada error puede convertirse en aprendizaje, cada pregunta en un descubrimiento y cada
-              dificultad en una oportunidad para crecer.
-            </p>
-            <p>
-              Más que un grupo de investigación, somos una gran familia. Una familia que celebra tus logros, acompaña tus dudas y te
-              extiende la mano cuando sientas que ya no puedes avanzar. Aquí no tienes que saberlo todo ni tener siempre la respuesta;
-              basta con tener la curiosidad de preguntar, el valor de intentarlo y la voluntad de aprender junto a otros.
-            </p>
-            <p>
-              Si caes, te ayudaremos a levantarte. Si te equivocas, aprenderemos contigo. Y si necesitas comenzar de nuevo, allí
-              estaremos para recordarte que no tienes que recorrer este camino a solas.
-            </p>
-            <p className="font-bold text-[#1C2624]">
-              Porque investigar no se trata de no fracasar, sino de aprender a fracasar mejor, crecer juntos y descubrir hasta dónde
-              podemos llegar cuando nadie tiene que caminar solo.
-            </p>
+            <p>{CLOSING_MESSAGE.intro}</p>
+            <blockquote className="border-l-4 border-[#10B981] pl-4 italic text-[#065F46]">{CLOSING_MESSAGE.quote}</blockquote>
+            {CLOSING_MESSAGE.paragraphs.map((x, i) => (
+              <p key={i}>{x}</p>
+            ))}
+            <p className="font-bold text-[#1C2624]">{CLOSING_MESSAGE.closing}</p>
           </div>
           <div className="text-center pt-2">
             <a

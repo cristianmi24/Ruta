@@ -37,7 +37,10 @@ export const Header: React.FC<HeaderProps> = ({
     update();
     const ro = new ResizeObserver(update);
     ro.observe(el);
-    return () => ro.disconnect();
+    return () => {
+      ro.disconnect();
+      document.documentElement.style.removeProperty('--header-h');
+    };
   }, []);
   const inAdmin = currentView === 'admin';
 
@@ -188,7 +191,7 @@ export const Header: React.FC<HeaderProps> = ({
                     onNavigate('test');
                   }
                 }}
-                className={`cursor-pointer text-xs sm:text-sm font-bold px-3.5 sm:px-4 py-2 rounded-xl transition-all whitespace-nowrap shadow-sm border-2 items-center gap-1.5 ${isAdmin ? 'hidden sm:flex' : 'flex'} ${
+                className={`cursor-pointer text-xs sm:text-sm font-bold px-3.5 sm:px-4 py-2 rounded-xl transition-all whitespace-nowrap shadow-sm border-2 items-center gap-1.5 hidden sm:flex ${
                   isTestUnlocked
                     ? 'bg-[#10B981] text-[#FFFDF9] hover:bg-[#059669] border-[#10B981]'
                     : 'bg-[#059669] text-[#FFFDF9] hover:bg-[#047857] border-[#059669]'

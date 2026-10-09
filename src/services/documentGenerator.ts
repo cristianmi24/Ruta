@@ -13,317 +13,183 @@ import {
   AlignmentType
 } from 'docx';
 import { AnalysisResult } from '../types';
+import { CLOSING_MESSAGE } from '../data/closingMessage';
 
 export interface DocumentOptions {
   includeAdminSection?: boolean;
 }
 
-export async function generatePDFReport(
-  analysis: AnalysisResult,
-  options: DocumentOptions = {}
-): Promise<void> {
-  const doc = new jsPDF({
-    orientation: 'portrait',
-    unit: 'mm',
-    format: 'a4'
-  });
+// ---------- PDF con la plantilla "Informe de orientación investigativa" ----------
 
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
-  const margin = 20;
-  const contentWidth = pageWidth - margin * 2;
-  let y = margin;
-
-  const checkPageBreak = (neededHeight: number) => {
-    if (y + neededHeight > pageHeight - margin) {
-      doc.addPage();
-      y = margin;
-      drawHeader();
-    }
-  };
-
-  const drawHeader = () => {
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.setTextColor(111, 121, 118); // #6F7976
-    doc.text('SEMILLERO DE INVESTIGACIÓN LABSIE · GRUPO EDUTLAN | UNIVERSIDAD DE CÓRDOBA', margin, y);
-    doc.text(`ID: ${analysis.id}`, pageWidth - margin, y, { align: 'right' });
-    y += 4;
-    doc.setDrawColor(221, 226, 222);
-    doc.setLineWidth(0.3);
-    doc.line(margin, y, pageWidth - margin, y);
-    y += 8;
-  };
-
-  // --- PORTADA / HEADER INSTITUCIONAL ---
-  drawHeader();
-
-  // Decorative top bar
-  doc.setFillColor(16, 185, 129); // #10B981 Primary Light Emerald
-  doc.rect(margin, y, contentWidth, 3, 'F');
-  y += 10;
-
-  // Title
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(22);
-  doc.setTextColor(5, 150, 105); // #059669 Primary Dark
-  doc.text('INFORME DE ORIENTACIÓN INVESTIGATIVA', margin, y);
-  y += 7;
-
-  doc.setFontSize(11);
-  doc.setFont('helvetica', 'italic');
-  doc.setTextColor(111, 121, 118);
-  doc.text('"De tus intereses a una posible investigación."', margin, y);
-  y += 4;
-  doc.setFont('helvetica', 'normal');
-  doc.text('Semillero de Investigación LabSIE · Grupo de Investigación EduTLAN', margin, y);
-  y += 12;
-
-  // Student Info Box
-  doc.setFillColor(255, 253, 249); // #FFFDF9
-  doc.setDrawColor(221, 226, 222);
-  doc.rect(margin, y, contentWidth, 42, 'FD');
-
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(36, 48, 47);
-  doc.text('DATOS DEL ESTUDIANTE · SEMILLERO LABSIE:', margin + 5, y + 7);
-
-  doc.setFont('helvetica', 'normal');
-  doc.text(`Nombre: ${analysis.studentProfile.name}`, margin + 5, y + 14);
-  doc.text(`Programa: ${analysis.studentProfile.program}`, margin + 5, y + 20);
-  doc.text(`Semestre: ${analysis.studentProfile.semester}`, margin + 5, y + 26);
-  doc.text(`Vinculación: Semillero de Inv. LabSIE (Ruta Activada)`, margin + 5, y + 32);
-
-  doc.text(`Correo: ${analysis.studentProfile.email}`, margin + 95, y + 14);
-  doc.text(`Teléfono: ${analysis.studentProfile.phone || 'No registrado'}`, margin + 95, y + 20);
-  doc.text(`Grupo: EduTLAN (Categoría A MinCiencias)`, margin + 95, y + 26);
-  doc.text(`Fecha de emisión: ${new Date(analysis.timestamp).toLocaleDateString('es-CO')}`, margin + 95, y + 32);
-  y += 48;
-
-  // Helper for Section Titles
-  const addSectionTitle = (num: string, title: string) => {
-    checkPageBreak(15);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12);
-    doc.setTextColor(5, 150, 105);
-    doc.text(`${num}. ${title.toUpperCase()}`, margin, y);
-    y += 2;
-    doc.setDrawColor(199, 154, 82); // #C79A52 Accent
-    doc.setLineWidth(0.5);
-    doc.line(margin, y, margin + 45, y);
-    y += 6;
-  };
-
-  // Helper for paragraphs
-  const addParagraph = (text: string, fontSize = 9.5) => {
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(fontSize);
-    doc.setTextColor(36, 48, 47);
-    const lines = doc.splitTextToSize(text, contentWidth);
-    checkPageBreak(lines.length * 4.5);
-    doc.text(lines, margin, y);
-    y += lines.length * 4.5 + 3;
-  };
-
-  // SECCIÓN 01: Perfil investigativo
-  addSectionTitle('01', 'Perfil investigativo');
-  addParagraph(`Arquetipo identificado: ${analysis.profileArchetype}.`);
-  addParagraph(
-    `Nivel de Correspondencia Global: ${analysis.correspondenceScore}/100 (${analysis.correspondenceLevel}). Este cálculo sintetiza la correspondencia entre los intereses declarados, las preferencias de aproximación científica y el patrimonio histórico de LabSIE.`
-  );
-  addParagraph(
-    `Experiencia previa: ${analysis.studentProfile.researchExperience} | Formación técnica: ${analysis.studentProfile.techExperience} | Familiaridad con IA: ${analysis.studentProfile.aiExperience}.`
-  );
-
-  // SECCIÓN 02: Intereses identificados
-  addSectionTitle('02', 'Intereses y curiosidades científicas');
-  const interestsList = analysis.whyBreakdown.matchingInterests.map(i => `• ${i}`).join('\n');
-  addParagraph(interestsList);
-
-  // SECCIÓN 03: Preferencias investigativas
-  addSectionTitle('03', 'Formas de investigar');
-  const waysList = analysis.dominantResearchWays.map(w => `• ${w}`).join('\n');
-  addParagraph(waysList);
-
-  // SECCIÓN 04: Idea propia
-  addSectionTitle('04', 'Inquietud o idea propia del estudiante');
-  const studentIdea =
-    analysis.studentAnswers.problemToInvestigate ||
-    analysis.studentAnswers.studentResearchIdea ||
-    'No especificada en el test.';
-  addParagraph(`Problema a investigar: "${studentIdea}"`);
-  if (analysis.studentAnswers.dreamResearch) {
-    addParagraph(`Investigación soñada: "${analysis.studentAnswers.dreamResearch}"`);
-  }
-  if (analysis.studentAnswers.sixMonthsDiscovery) {
-    addParagraph(`Meta a seis meses: "${analysis.studentAnswers.sixMonthsDiscovery}"`);
-  }
-  if (analysis.studentAnswers.divergentProjectIdea) {
-    addParagraph(`Idea divergente a partir de LabSIE: "${analysis.studentAnswers.divergentProjectIdea}"`);
-  }
-  if (analysis.studentAnswers.continuationPreference) {
-    addParagraph(`Preferencia de continuidad declarada: ${analysis.studentAnswers.continuationPreference}`);
-  }
-
-  // SECCIÓN 05: Investigaciones LabSIE relacionadas
-  addSectionTitle('05', 'Investigaciones de LabSIE relacionadas');
-  analysis.relatedProjects.forEach((rp, idx) => {
-    checkPageBreak(18);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9.5);
-    doc.setTextColor(71, 122, 114);
-    doc.text(`${idx + 1}. [${rp.projectCode}] ${rp.projectTitle} (Afinidad: ${rp.affinity}%)`, margin, y);
-    y += 4.5;
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(70, 75, 74);
-    const reasonLines = doc.splitTextToSize(`Razón de correspondencia: ${rp.connectionReason}`, contentWidth - 4);
-    doc.text(reasonLines, margin + 4, y);
-    y += reasonLines.length * 4.2 + 3;
-  });
-
-  // SECCIÓN 06: Análisis de correspondencia
-  addSectionTitle('06', 'Análisis de correspondencia y trazabilidad');
-  analysis.whyExplanation.forEach(p => {
-    addParagraph(p);
-  });
-
-  // SECCIÓN 07: Ruta investigativa sugerida
-  addSectionTitle('07', 'Ruta investigativa sugerida');
-  checkPageBreak(16);
-  doc.setFillColor(247, 243, 237); // #F7F3ED
-  doc.setDrawColor(71, 122, 114);
-  doc.rect(margin, y, contentWidth, 12, 'FD');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.setTextColor(49, 91, 85);
-  doc.text(`MODALIDAD DE RUTA: ${analysis.routeType}`, margin + 5, y + 7.5);
-  y += 18;
-
-  // SECCIÓN 08: Posible proyecto preliminar
-  addSectionTitle('08', 'Posibilidad de investigación para explorar');
-  checkPageBreak(30);
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
-  doc.setTextColor(195, 139, 74); // #C38B4A Warning / Accent
-  doc.text(`[ ${analysis.proposedProject.statusLabel} ]`, margin, y);
-  y += 5;
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10.5);
-  doc.setTextColor(36, 48, 47);
-  const titleLines = doc.splitTextToSize(`Título tentativo: ${analysis.proposedProject.tentativeTitle}`, contentWidth);
-  doc.text(titleLines, margin, y);
-  y += titleLines.length * 5 + 3;
-
-  addParagraph(`Pregunta de investigación tentativa: ${analysis.proposedProject.tentativeQuestion}`);
-  addParagraph(`Objetivo general tentativo: ${analysis.proposedProject.tentativeObjective}`);
-  addParagraph(`Conceptos centrales: ${analysis.proposedProject.centralConcepts.join(' · ')}`);
-  addParagraph(`Contexto / Población sugerida: ${analysis.proposedProject.possibleContextPopulation}`);
-  addParagraph(`Posible aporte al semillero: ${analysis.proposedProject.possibleContribution}`);
-
-  // SECCIÓN 08-B: Síntesis de los 3 Puntos de Vista Analizados
-  if (analysis.perspectives && analysis.perspectives.length > 0) {
-    addSectionTitle('08-B', 'Síntesis de los 3 Puntos de Vista Analizados');
-    analysis.perspectives.forEach(p => {
-      checkPageBreak(18);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9.5);
-      doc.setTextColor(5, 150, 105);
-      doc.text(`• ${p.title} (${p.correspondenceScore}% afinidad):`, margin, y);
-      y += 4.5;
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(9);
-      doc.setTextColor(36, 48, 47);
-      const descLines = doc.splitTextToSize(`Enfoque: ${p.shortDescription} | Metodología: ${p.methodologyFocus.type}`, contentWidth - 4);
-      doc.text(descLines, margin + 4, y);
-      y += descLines.length * 4.2 + 3;
+/** Logo oficial de LabSIE (PNG, servido por /api/logo) reducido para que el PDF no pese de más. */
+async function loadLabsieLogo(): Promise<{ data: string; white: string; ratio: number } | null> {
+  try {
+    const blob = await fetch('/api/logo').then(r => (r.ok ? r.blob() : Promise.reject(new Error('logo'))));
+    const url = URL.createObjectURL(blob);
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const i = new Image();
+      i.onload = () => resolve(i);
+      i.onerror = reject;
+      i.src = url;
     });
-  }
-
-  // SECCIÓN 08-C: 3 Opciones de Proyectos Nuevos Formuladas
-  if (analysis.proposedProjectOptions && analysis.proposedProjectOptions.length > 0) {
-    addSectionTitle('08-C', '3 Opciones de Proyectos Nuevos Formuladas');
-    analysis.proposedProjectOptions.forEach(opt => {
-      checkPageBreak(25);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9.5);
-      doc.setTextColor(36, 48, 47);
-      doc.text(`[${opt.badge}]`, margin, y);
-      y += 4.5;
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9);
-      doc.setTextColor(5, 150, 105);
-      const titleLines = doc.splitTextToSize(`Título: ${opt.tentativeTitle}`, contentWidth - 4);
-      doc.text(titleLines, margin + 4, y);
-      y += titleLines.length * 4 + 2;
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8.5);
-      doc.setTextColor(70, 75, 74);
-      const qLines = doc.splitTextToSize(`Pregunta: "${opt.tentativeQuestion}"`, contentWidth - 4);
-      doc.text(qLines, margin + 4, y);
-      y += qLines.length * 3.8 + 2;
-      const objLines = doc.splitTextToSize(`Objetivo: ${opt.tentativeObjective}`, contentWidth - 4);
-      doc.text(objLines, margin + 4, y);
-      y += objLines.length * 3.8 + 3;
-    });
-  }
-
-  // SECCIÓN 09: Línea de investigación sugerida
-  addSectionTitle('09', 'Línea de investigación sugerida');
-  addParagraph(`Línea sugerida: ${analysis.primaryLineName}.`);
-
-  // SECCIÓN 10 & 11: Decisión y observaciones administrativas
-  if (options.includeAdminSection && analysis.adminReview) {
-    addSectionTitle('10', 'Decisión administrativa');
-    addParagraph(`Estado de la revisión: ${analysis.adminReview.status}`);
-    addParagraph(`Decisión institucional: ${analysis.adminReview.decision}`);
-    if (analysis.adminReview.assignedTutor) {
-      addParagraph(`Tutor asignado: ${analysis.adminReview.assignedTutor}`);
+    const w = 300;
+    const h = Math.round((img.naturalHeight / img.naturalWidth) * w);
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d')!;
+    ctx.drawImage(img, 0, 0, w, h);
+    const data = canvas.toDataURL('image/png');
+    // Versión blanca del logo para ponerlo directamente sobre el encabezado verde
+    const px = ctx.getImageData(0, 0, w, h);
+    for (let k = 0; k < px.data.length; k += 4) {
+      px.data[k] = 255;
+      px.data[k + 1] = 255;
+      px.data[k + 2] = 255;
     }
-    if (analysis.adminReview.priority) {
-      addParagraph(`Nivel de prioridad: ${analysis.adminReview.priority}`);
-    }
-
-    addSectionTitle('11', 'Observaciones de la Coordinación LabSIE');
-    addParagraph(analysis.adminReview.adminComments || 'Sin observaciones adicionales registradas.');
+    ctx.putImageData(px, 0, 0);
+    const white = canvas.toDataURL('image/png');
+    URL.revokeObjectURL(url);
+    return { data, white, ratio: h / w };
+  } catch {
+    return null;
   }
+}
 
-  // SECCIÓN 12: Próximos pasos
-  addSectionTitle('12', 'Próximos pasos recomendados');
-  analysis.proposedProject.nextSteps.forEach(step => {
-    addParagraph(`→ ${step}`);
+/** Renderiza la plantilla fuera de pantalla y espera fuentes e imágenes. */
+async function renderTemplate(analysis: AnalysisResult, logo: string | null, logoWhite: string | null, includeAdminSection: boolean) {
+  const [{ createElement }, { createRoot }, { ReportTemplate }, { storageService }] = await Promise.all([
+    import('react'),
+    import('react-dom/client'),
+    import('../components/ReportTemplate'),
+    import('./storageService')
+  ]);
+  const projectQuestions: Record<string, string> = {};
+  storageService.getProjects().forEach(p => {
+    if (p.question) projectQuestions[p.code] = p.question;
   });
 
-  // SECCIÓN 13: Reporte personal (carta, dónde entrar y proyectos que puede hacer)
-  const qa = analysis.qwenAnalysis;
-  if (qa) {
-    addSectionTitle('13', 'Tu reporte de ruta investigativa');
-    (qa.warmLetter || []).forEach(parr => addParagraph(parr));
-    if (qa.whereYouCanEnter) addParagraph(`Dónde puedes entrar: ${qa.whereYouCanEnter}`);
-    (qa.projectsYouCanDo || []).forEach(pr => addParagraph(`• ${pr.projectCode} · ${pr.projectTitle}: ${pr.whatYouCanDo}`));
-    addParagraph(qa.closingNote || 'Más información en edutlan.online.');
+  const host = document.createElement('div');
+  host.style.cssText = 'position:fixed;left:-10000px;top:0;width:794px;z-index:-1;pointer-events:none;';
+  document.body.appendChild(host);
+  const root = createRoot(host);
+  root.render(createElement(ReportTemplate, { analysis, logoSrc: logo, logoWhiteSrc: logoWhite, projectQuestions, includeAdminSection }));
+
+  await new Promise(r => setTimeout(r, 80));
+  await (document as any).fonts?.ready;
+  await Promise.all(
+    Array.from(host.querySelectorAll('img')).map(img => (img.complete ? Promise.resolve() : img.decode().catch(() => undefined)))
+  );
+  return { host, root };
+}
+
+export async function generatePDFReport(analysis: AnalysisResult, options: DocumentOptions = {}): Promise<void> {
+  const logo = await loadLabsieLogo();
+  const { host, root } = await renderTemplate(analysis, logo?.data || null, logo?.white || null, !!options.includeAdminSection);
+
+  try {
+    const html2canvas = (await import('html2canvas')).default;
+    const el = host.firstElementChild as HTMLElement;
+    const scale = 1.5;
+    const canvas = await html2canvas(el, { scale, backgroundColor: '#FFFDF9', useCORS: true, logging: false });
+
+    // Geometría A4 (mm) ↔ píxeles de la plantilla (794 px de ancho)
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const mmPerPx = pageW / 794;
+    const footerMm = 28;
+    const topMm = 10;
+    const base0 = el.getBoundingClientRect().top;
+    const lastNode = el.querySelector('.lr-page')?.lastElementChild as HTMLElement | null;
+    const totalPx = Math.min(el.scrollHeight, lastNode ? Math.ceil(lastNode.getBoundingClientRect().bottom - base0) + 16 : el.scrollHeight);
+
+    // Cortes de página: preferir los bordes de secciones y tarjetas para no partirlas
+    const base = el.getBoundingClientRect().top;
+    const marks = new Set<number>();
+    el.querySelectorAll('[data-break]').forEach(node => {
+      const r = (node as HTMLElement).getBoundingClientRect();
+      marks.add(Math.round(r.top - base) - 8);
+      marks.add(Math.round(r.bottom - base) + 4);
+    });
+    // Nunca cortar justo después de un título de sección (el título viaja con su contenido)
+    const heads = Array.from(el.querySelectorAll('[data-keep-next]')).map(node => {
+      const r = (node as HTMLElement).getBoundingClientRect();
+      return [r.top - base, r.bottom - base + 60] as [number, number];
+    });
+    const allowed = (v: number) => !heads.some(([t, b]) => v > t + 2 && v < b);
+    const candidates = [...marks].filter(v => v > 0 && allowed(v)).sort((x, y) => x - y);
+    // Puntos de corte finos (entre párrafos) para bloques más altos que una página
+    const fine = Array.from(el.querySelectorAll('p, li, blockquote, h3, h4, .lr-label'))
+      .map(node => Math.round((node as HTMLElement).getBoundingClientRect().bottom - base) + 3)
+      .filter(allowed)
+      .sort((x, y) => x - y);
+
+    const slices: [number, number][] = [];
+    let start = 0;
+    while (start < totalPx - 2) {
+      const capacity = (pageH - footerMm - (slices.length ? topMm : 0)) / mmPerPx;
+      const limit = start + capacity;
+      if (limit >= totalPx) {
+        slices.push([start, totalPx]);
+        break;
+      }
+      const fit = candidates.filter(v => v > start + capacity * 0.35 && v <= limit);
+      const fineFit = fine.filter(v => v > start + capacity * 0.5 && v <= limit);
+      const end = fit.length ? fit[fit.length - 1] : fineFit.length ? fineFit[fineFit.length - 1] : Math.floor(limit);
+      slices.push([start, end]);
+      start = end;
+    }
+
+    slices.forEach(([s, e], i) => {
+      if (i > 0) doc.addPage();
+      doc.setFillColor(255, 253, 249);
+      doc.rect(0, 0, pageW, pageH, 'F');
+      const part = document.createElement('canvas');
+      part.width = canvas.width;
+      part.height = Math.ceil((e - s) * scale);
+      const ctx = part.getContext('2d')!;
+      ctx.fillStyle = '#FFFDF9';
+      ctx.fillRect(0, 0, part.width, part.height);
+      ctx.drawImage(canvas, 0, Math.floor(s * scale), canvas.width, part.height, 0, 0, canvas.width, part.height);
+      doc.addImage(part.toDataURL('image/jpeg', 0.82), 'JPEG', 0, i ? topMm : 0, pageW, (e - s) * mmPerPx, undefined, 'FAST');
+    });
+
+    // Pie de página y marca de agua ("by" + logo de LabSIE) en todas las páginas
+    const total = doc.getNumberOfPages();
+    const GState = (doc as any).GState;
+    for (let i = 1; i <= total; i++) {
+      doc.setPage(i);
+      doc.setDrawColor(229, 224, 214);
+      doc.setLineWidth(0.3);
+      doc.line(14, pageH - 11, pageW - 14, pageH - 11);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.5);
+      doc.setTextColor(82, 96, 102);
+      doc.text('Semillero LabSIE · Grupo EduTLAN · edutlan.online', 14, pageH - 6.5);
+      doc.text(`Página ${i} de ${total}`, pageW - 14, pageH - 6.5, { align: 'right' });
+      try {
+        if (GState) doc.setGState(new GState({ opacity: 0.38 }));
+        const lw = 16;
+        const lh = logo ? lw * logo.ratio : 0;
+        const x0 = pageW / 2 - (5 + lw) / 2;
+        const baseY = pageH - 12.5;
+        doc.setFont('helvetica', 'italic');
+        doc.setFontSize(9);
+        doc.setTextColor(28, 38, 36);
+        doc.text('by', x0, baseY - lh / 2 + 1.2);
+        if (logo) doc.addImage(logo.data, 'PNG', x0 + 5, baseY - lh, lw, lh, 'labsie-logo', 'SLOW');
+      } finally {
+        if (GState) doc.setGState(new GState({ opacity: 1 }));
+      }
+    }
+
+    const safeName = analysis.studentProfile.name.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+    doc.save(`LabSIE_Informe_${safeName}_${analysis.id.slice(-6)}.pdf`);
+  } finally {
+    root.unmount();
+    host.remove();
   }
-
-  // SECCIÓN FINAL: Nota metodológica
-  checkPageBreak(25);
-  y += 4;
-  doc.setDrawColor(221, 226, 222);
-  doc.line(margin, y, pageWidth - margin, y);
-  y += 6;
-  doc.setFont('helvetica', 'italic');
-  doc.setFontSize(8);
-  doc.setTextColor(111, 121, 118);
-  const disclaimer =
-    'Nota metodológica: Este documento constituye una orientación inicial basada en las respuestas proporcionadas por el estudiante y en la información disponible sobre las investigaciones del semillero. No representa por sí mismo la aprobación, asignación o validación definitiva de un proyecto de investigación. La decisión final corresponde a la coordinación del semillero LabSIE y al Grupo EduTLAN.';
-  const discLines = doc.splitTextToSize(disclaimer, contentWidth);
-  doc.text(discLines, margin, y);
-
-  // Trigger download
-  const safeName = analysis.studentProfile.name.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
-  const fileName = `LabSIE_Informe_${safeName}_${analysis.id.slice(-6)}.pdf`;
-  doc.save(fileName);
 }
 
 export async function generateDOCXReport(
@@ -607,6 +473,14 @@ export async function generateDOCXReport(
     (qa.projectsYouCanDo || []).forEach(pr => children.push(createP(`• ${pr.projectCode} · ${pr.projectTitle}: ${pr.whatYouCanDo}`)));
     children.push(createP(qa.closingNote || 'Más información en edutlan.online.'));
   }
+
+  // Antes de irte, lee esto
+  children.push(createHeading(CLOSING_MESSAGE.kicker, HeadingLevel.HEADING_2));
+  children.push(createP(CLOSING_MESSAGE.title, true));
+  children.push(createP(CLOSING_MESSAGE.intro));
+  children.push(createP(CLOSING_MESSAGE.quote, false, true));
+  CLOSING_MESSAGE.paragraphs.forEach(p => children.push(createP(p)));
+  children.push(createP(CLOSING_MESSAGE.closing, true));
 
   // Final Methodological Note
   children.push(

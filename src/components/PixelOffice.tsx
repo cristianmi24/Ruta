@@ -59,16 +59,66 @@ const mk = (T: string, B: string, S: string, H: string, P = '#2b2f6b'): Pal => (
 
 /* ── el equipo ── */
 const TEAM = {
-  manuel: { pal: mk('#f6f5ef', '#d6d4cb', '#c68642', '#2a1a0e'), long: false },
+  manuel: { pal: mk('#f6f5ef', '#d6d4cb', '#f6d5b8', '#2a1a0e'), long: false },
   yuliana: { pal: mk('#1d1b26', '#2c2a38', '#f2c29b', '#ff7a1a', '#3a5a9b'), long: true },
-  jesus: { pal: mk('#f6f5ef', '#d6d4cb', '#8d5524', '#120f33', '#3b3f4a'), long: false },
+  jesus: { pal: mk('#f6f5ef', '#d6d4cb', '#f6d5b8', '#120f33', '#3b3f4a'), long: false },
   andreina: { pal: mk('#9b7bff', '#7d5ee6', '#e0ac69', '#4a2c17'), long: true },
-  mafe: { pal: mk('#ff5d8f', '#e04476', '#f2c29b', '#1a1330'), long: true },
-  leidy: { pal: mk('#36e0d0', '#22bfb0', '#c68642', '#2a1a0e'), long: true },
+  mafe: { pal: mk('#ff5d8f', '#e04476', '#f6d5b8', '#1a1330'), long: true },
+  leidy: { pal: mk('#36e0d0', '#22bfb0', '#f6d5b8', '#2a1a0e'), long: true },
   cristian: { pal: mk('#2fbf71', '#239a5a', '#e0ac69', '#120f33'), long: false },
   daniela: { pal: mk('#ffcf3f', '#e6b322', '#f2c29b', '#6b3a1e'), long: true },
-  daniel: { pal: mk('#3a7bd5', '#2c62b0', '#c68642', '#2a1a0e'), long: false }
+  daniel: { pal: mk('#3a7bd5', '#2c62b0', '#c68642', '#2a1a0e'), long: false },
+  sami: { pal: mk('#ff9fd0', '#f47cbb', '#f6d5b8', '#3b2414', '#4a6fb5'), long: true },
+  andrea: { pal: mk('#f87171', '#e05252', '#c68642', '#1a1330'), long: true }
 };
+
+
+/* ── Sami: sprite propio y más detallado (16 px de ancho) ── */
+const SAMI_PAL: Pal = {
+  H: '#3b2414', // cabello
+  h: '#7a4a2a', // brillo del cabello
+  R: '#ff4f9a', // moño
+  r: '#ffc2dd', // luz del moño
+  S: '#f6d5b8', // piel
+  W: '#ffffff', // brillo de los ojos
+  E: '#120f33', // ojos
+  M: '#c9636f', // boca
+  D: '#ff9fd0', // blusa rosadita
+  d: '#f47cbb', // sombra de la blusa
+  P: '#4a6fb5', // jean
+  K: '#2b2f6b' // zapatos
+};
+const SAMI_BODY = [
+  '....HHHHHH.RrR..',
+  '...HHhhHHHHHRR..',
+  '..HHhHHHHHHHH...',
+  '..HHhSSSSSShHH..',
+  '..HSSEESSEESSH..',
+  '..HSSEWSSEWSSH..',
+  '..HSSSSSSSSSSH..',
+  '..HHSSSMMSSSHH..',
+  '..HHH..SS..HHH..',
+  '..HHHdDDDDdHHH..',
+  '..HHdDDDDDDdHH..',
+  '...SdDDDDDDdS...',
+  '....dDDDDDDd....',
+  '.....PPPPPP.....',
+  '.....PPPPPP.....'
+];
+const SAMI_LEG_A = ['.....PP..PP.....', '.....KK..KK.....'];
+const SAMI_LEG_B = ['......PPPP......', '......KKKK......'];
+
+function SamiCharacter() {
+  return (
+    <svg className="char" viewBox="0 0 16 17" shapeRendering="crispEdges" style={{ width: 'calc(var(--u)*13)', display: 'block' }}>
+      {px(SAMI_BODY, SAMI_PAL)}
+      <g className="la">{px(SAMI_LEG_A, SAMI_PAL, 15)}</g>
+      <g className="lb">{px(SAMI_LEG_B, SAMI_PAL, 15)}</g>
+      {/* destello en el moño */}
+      <rect className="blink" x="14.2" y="0" width=".7" height=".7" fill="#fff" />
+    </svg>
+  );
+}
 
 interface WalkerCfg {
   name: string;
@@ -81,6 +131,8 @@ interface WalkerCfg {
   pal: Pal;
   every: number;
   say: string[];
+  sparkle?: boolean;
+  special?: 'sami';
 }
 
 function Walker({ cfg }: { cfg: WalkerCfg }) {
@@ -118,22 +170,40 @@ function Walker({ cfg }: { cfg: WalkerCfg }) {
       <div className={hop ? 'hp hop' : 'hp'} onClick={poke} role="img" aria-label={cfg.name}>
         <div className="bob">
           <div className="fl" style={{ animationDuration: `${cfg.dur}s`, animationDelay: `${cfg.delay}s` }}>
-            <Character pal={cfg.pal} long={cfg.long} />
+            {cfg.special === 'sami' ? <SamiCharacter /> : <Character pal={cfg.pal} long={cfg.long} />}
           </div>
         </div>
       </div>
       <div className="shadow" />
-      <span className="tag">{cfg.name}</span>
+      {cfg.sparkle && (
+        <div className="sparkles" aria-hidden="true">
+          {SPARKLES.map((sp, i) => (
+            <i key={i} style={{ '--dx': sp.dx, '--sx': sp.x, background: sp.c, animationDelay: `${sp.d}s` } as CSSProperties} />
+          ))}
+        </div>
+      )}
+      <span className={cfg.special ? 'tag tag-special' : 'tag'}>{cfg.name}</span>
     </div>
   );
 }
 
+const SPARKLES = [
+  { x: '10%', dx: '-6px', c: '#ffe066', d: 0 },
+  { x: '70%', dx: '8px', c: '#ff8fc8', d: 0.25 },
+  { x: '35%', dx: '-10px', c: '#ffc2dd', d: 0.5 },
+  { x: '85%', dx: '4px', c: '#ffe066', d: 0.75 },
+  { x: '50%', dx: '-3px', c: '#fff', d: 1 },
+  { x: '20%', dx: '10px', c: '#ff4f9a', d: 1.25 },
+  { x: '60%', dx: '-8px', c: '#ffc2dd', d: 1.5 },
+  { x: '28%', dx: '6px', c: '#ffe066', d: 1.75 }
+];
+
 const WALKERS: WalkerCfg[] = [
-  { name: 'Manuel', y: 5, s: 1.3, dur: 74, delay: -6, x: 20, ...TEAM.manuel, every: 4200, say: ['¿Dónde están los mayas?'] },
-  { name: 'Yuliana', y: 6, s: 1.3, dur: 74, delay: -8.4, x: 14, ...TEAM.yuliana, every: 0, say: [] },
-  { name: 'Jesús', y: 16, s: 1.1, dur: 96, delay: -50, x: 60, ...TEAM.jesus, every: 0, say: [] },
-  { name: 'Andreina', y: 24, s: 1.0, dur: 84, delay: -22, x: 40, ...TEAM.andreina, every: 3800, say: ['¡Llegué!'] },
-  { name: 'Mafe', y: 12, s: 1.2, dur: 104, delay: -64, x: 80, ...TEAM.mafe, every: 4600, say: ['¿Quieren postres?'] }
+  { name: 'Manuel', y: 3, s: 1.3, dur: 70, delay: -5, x: 20, ...TEAM.manuel, every: 4200, say: ['¿Dónde están los mayas?'] },
+  { name: 'Yuliana', y: 11, s: 1.2, dur: 92, delay: -48, x: 14, ...TEAM.yuliana, every: 0, say: [] },
+  { name: 'Jesús', y: 18, s: 1.1, dur: 81, delay: -66, x: 60, ...TEAM.jesus, every: 0, say: [] },
+  { name: 'Mafe', y: 7, s: 1.25, dur: 104, delay: -30, x: 80, ...TEAM.mafe, every: 4600, say: ['¿Quieren postres?'] },
+  { name: 'Sami', y: 14, s: 1.15, dur: 86, delay: -78, x: 30, ...TEAM.sami, every: 0, say: [], sparkle: true, special: 'sami' }
 ];
 
 /* ── puestos de trabajo ── */
@@ -244,6 +314,53 @@ function SeatedOnChair({ cls, name, pal, long, chair }: { cls: string; name: str
   );
 }
 
+
+/** Andreina: sentada en una silla de oficina con rueditas que rueda y gira por la sala. */
+function ChairRider({ name, pal, long, say }: { name: string; pal: Pal; long?: boolean; say: string }) {
+  const [show, setShow] = useState(true);
+  useEffect(() => {
+    const t = setInterval(() => setShow(v => !v), 3800);
+    return () => clearInterval(t);
+  }, []);
+  return (
+    <div className="roller" style={{ '--u': 'calc(var(--u0)*1.1)' } as CSSProperties}>
+      {show && (
+        <div className="bub" style={{ '--bc': pal.T } as CSSProperties}>
+          {say}
+        </div>
+      )}
+      <div className="roll-spin">
+        <svg className="char" viewBox="0 0 16 24" shapeRendering="crispEdges" style={{ width: 'calc(var(--u)*16)', display: 'block' }} role="img" aria-label={name}>
+          {/* silla minimalista negra: respaldo y asiento */}
+          <rect x="4" y="5" width="8" height="8" fill="#1d1b26" />
+          <rect x="5" y="6" width="6" height=".5" fill="#ffffff" opacity=".18" />
+          <rect x="3" y="14" width="10" height="1.5" fill="#1d1b26" />
+          <g className="roll-tilt" transform="translate(2 2)">
+            {px(bodyFor(long).slice(0, 11), pal)}
+            {px(SEAT_LEGS, pal, 11)}
+          </g>
+          {/* pistón y base */}
+          <rect x="7.5" y="17" width="1" height="4" fill="#1d1b26" />
+          <rect x="3.5" y="21" width="9" height=".8" fill="#1d1b26" />
+          {/* rueditas que giran (dos cuadros alternados) */}
+          <g className="la">
+            <rect x="3" y="22" width="1.2" height="1.2" fill="#1d1b26" />
+            <rect x="7.4" y="22" width="1.2" height="1.2" fill="#1d1b26" />
+            <rect x="11.8" y="22" width="1.2" height="1.2" fill="#1d1b26" />
+          </g>
+          <g className="lb">
+            <rect x="3" y="22" width="1.2" height="1.2" fill="#3a3746" />
+            <rect x="7.4" y="22" width="1.2" height="1.2" fill="#3a3746" />
+            <rect x="11.8" y="22" width="1.2" height="1.2" fill="#3a3746" />
+          </g>
+        </svg>
+      </div>
+      <div className="shadow" />
+      <span className="tag">{name}</span>
+    </div>
+  );
+}
+
 const Plant = ({ cls }: { cls: string }) => (
   <svg className={`plant ${cls}`} viewBox="0 0 10 16" shapeRendering="crispEdges" style={{ width: 'calc(var(--u0)*10)' }}>
     <g className="leaf">
@@ -259,27 +376,33 @@ const Plant = ({ cls }: { cls: string }) => (
 );
 
 /* ── retrato grupal (cuadro de la pared) ── */
-const PORTRAIT_BACK = [TEAM.manuel, TEAM.jesus, TEAM.cristian, TEAM.daniel, TEAM.daniela];
-const PORTRAIT_FRONT = [TEAM.yuliana, TEAM.andreina, TEAM.mafe, TEAM.leidy];
+const PORTRAIT_BACK = [TEAM.manuel, TEAM.jesus, TEAM.cristian, TEAM.daniel, TEAM.daniela, TEAM.andrea];
+const PORTRAIT_FRONT = [TEAM.yuliana, TEAM.andreina, TEAM.sami, TEAM.mafe, TEAM.leidy];
 
 const GroupPortrait = () => (
   <div className="fr group" style={{ '--d': '0s' } as CSSProperties}>
     <div className="mat">
-      <svg viewBox="0 0 62 23" shapeRendering="crispEdges" role="img" aria-label="Retrato del equipo del semillero">
-        <rect x="0" y="0" width="62" height="23" fill="#ffe9c7" />
-        <rect x="0" y="0" width="62" height="9" fill="#ffd9a8" />
+      <svg viewBox="0 0 74 23" shapeRendering="crispEdges" role="img" aria-label="Retrato del equipo del semillero">
+        <rect x="0" y="0" width="74" height="23" fill="#ffe9c7" />
+        <rect x="0" y="0" width="74" height="9" fill="#ffd9a8" />
         <rect x="6" y="2" width="2" height="2" fill="#fff6" />
-        <rect x="52" y="3" width="2" height="2" fill="#fff6" />
+        <rect x="66" y="3" width="2" height="2" fill="#fff6" />
         {PORTRAIT_BACK.map((p, i) => (
           <g key={i} transform={`translate(${1 + i * 12} 1)`}>
             {px(bodyFor(p.long).slice(0, 10), p.pal)}
           </g>
         ))}
-        {PORTRAIT_FRONT.map((p, i) => (
-          <g key={i} transform={`translate(${7 + i * 12} 10)`}>
-            {px(bodyFor(p.long).slice(0, 11), p.pal)}
-          </g>
-        ))}
+        {PORTRAIT_FRONT.map((p, i) =>
+          p === TEAM.sami ? (
+            <g key={i} transform={`translate(${7 + i * 12} 10) scale(.75)`}>
+              {px(SAMI_BODY.slice(0, 15), SAMI_PAL)}
+            </g>
+          ) : (
+            <g key={i} transform={`translate(${7 + i * 12} 10)`}>
+              {px(bodyFor(p.long).slice(0, 11), p.pal)}
+            </g>
+          )
+        )}
         <g transform="translate(37 1)">
           <Headset />
         </g>
@@ -376,10 +499,12 @@ export default function PixelOffice({ children, plain }: { children?: ReactNode;
           ]}
         />
         <Workstation cls="s3" name="Daniel" {...TEAM.daniel} chair="#9b7bff" screens={[{ x: 27, kind: 'video' }]} headset />
+        <Workstation cls="s5" name="Andrea" {...TEAM.andrea} chair="#36e0d0" screens={[{ x: 27, kind: 'chart' }]} />
         <SeatedOnChair cls="s4" name="Daniela" {...TEAM.daniela} chair="#ff9a4d" />
         {WALKERS.map((w, i) => (
           <Walker key={i} cfg={w} />
         ))}
+        <ChairRider name="Andreina" {...TEAM.andreina} say="¡Llegué!" />
         {bits.map((b, i) => (
           <i
             key={i}
@@ -425,7 +550,7 @@ repeating-linear-gradient(0deg,#c58d4e 0 calc(var(--u0)*14),#b97f42 calc(var(--u
 .wm{position:absolute;z-index:2;opacity:.14;pointer-events:none;object-fit:contain;filter:drop-shadow(0 2px 8px #120f3344)}
 .wm-e{left:6%;top:18%;width:min(22vw,180px)}
 .wm-l{right:6%;top:22%;width:min(20vw,160px)}
-.win{position:absolute;left:4%;top:9%;width:calc(var(--u0)*60);height:calc(var(--u0)*40);border:calc(var(--u0)*2) solid #4a2d16;box-shadow:0 0 0 calc(var(--u0)*2) #7a4d27,calc(var(--u0)*2) calc(var(--u0)*3) 0 #2d1a0b66;overflow:hidden;z-index:1}
+.win{position:absolute;left:4%;top:calc(var(--header-h,0px) + 3%);width:calc(var(--u0)*60);height:calc(var(--u0)*40);border:calc(var(--u0)*2) solid #4a2d16;box-shadow:0 0 0 calc(var(--u0)*2) #7a4d27,calc(var(--u0)*2) calc(var(--u0)*3) 0 #2d1a0b66;overflow:hidden;z-index:1}
 .sky{position:absolute;inset:0;animation:sky 56s linear infinite}
 .sun,.moon,.star{position:absolute;display:block}
 .sun{width:calc(var(--u0)*6);height:calc(var(--u0)*6);background:#ffcf3f;box-shadow:0 0 0 calc(var(--u0)*1.5) #ffcf3f66;animation:sun 56s linear infinite}
@@ -438,14 +563,17 @@ repeating-linear-gradient(0deg,#c58d4e 0 calc(var(--u0)*14),#b97f42 calc(var(--u
 .fr{position:absolute;top:8%;width:calc(var(--u0)*17);background:#fffdf9;padding:calc(var(--u0)*1);border:1px solid #2d1a0b26;border-radius:4px;box-shadow:0 6px 18px -8px #2d1a0b55;z-index:1;transform-origin:50% 0;animation:sway 9s ease-in-out infinite;animation-delay:var(--d)}
 .mat{width:100%;height:100%;display:grid;place-items:center;padding:calc(var(--u0)*1.2);border:1px solid #2d1a0b14;border-radius:2px}
 .mat svg{display:block;width:100%;height:auto}
-.fr.group{width:calc(var(--u0)*46);padding:calc(var(--u0)*1.2) calc(var(--u0)*1.2) calc(var(--u0)*.6)}
+.fr.group{width:calc(var(--u0)*52);padding:calc(var(--u0)*1.2) calc(var(--u0)*1.2) calc(var(--u0)*.6)}
 .fr.group .mat{padding:0;overflow:hidden}
 .plaque{display:block;margin:calc(var(--u0)*.6) auto 0;width:max-content;max-width:100%;padding:1px 6px;font-size:clamp(6px,calc(var(--u0)*1.25),10px);color:#4a2d16;background:#f3dcb4;border:1px solid #c9a36e;border-radius:2px;letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.group{left:60%;top:calc(8% + 56px)}
+.group{left:58%;top:calc(var(--header-h,0px) + 2%)}
 .plant{position:absolute;z-index:2;bottom:calc(42% - var(--u0)*4)}.p1{left:1%}.p2{right:1%}
-.st{--k:1;position:absolute;z-index:3;bottom:calc(42% - var(--u0)*12)}
+.st{--k:.75;position:absolute;z-index:3;bottom:calc(42% - var(--u0)*9)}
 .st svg{display:block;width:calc(var(--u0)*var(--sw)*var(--k))}
-.s1{left:6%}.s2{left:30%}.s3{left:55%}.s4{left:82%}
+.s1{left:2%}.s2{left:20.5%}.s3{left:40%}.s5{left:59.5%}.s4{left:82%}
+.sparkles{position:absolute;inset:0;pointer-events:none}
+.sparkles i{position:absolute;left:var(--sx);bottom:15%;width:calc(var(--u)*1.6);height:calc(var(--u)*1.6);clip-path:polygon(50% 0,62% 38%,100% 50%,62% 62%,50% 100%,38% 62%,0 50%,38% 38%);opacity:0;animation:twinkle 1.5s ease-out infinite}
+@keyframes twinkle{0%{opacity:0;transform:translate(0,0) scale(.3) rotate(0)}25%{opacity:1}100%{opacity:0;transform:translate(var(--dx),calc(var(--u)*-9)) scale(1.1) rotate(90deg)}}
 .sit{animation:sit 1.6s steps(2) infinite}
 .blink{animation:blink 1s steps(1) infinite}
 .talk{animation:talk .5s steps(1) infinite}
@@ -463,6 +591,13 @@ repeating-linear-gradient(0deg,#c58d4e 0 calc(var(--u0)*14),#b97f42 calc(var(--u
 .fl{animation:flip 80s steps(1) infinite}
 .la{animation:la .5s steps(1) infinite}.lb{animation:lb .5s steps(1) infinite}
 .w .tag{top:calc(100% + var(--u)*1.2)}
+.st .tag{top:auto;bottom:calc(100% + 2px)}
+.roller{position:absolute;bottom:17%;left:8%;z-index:83;animation:roll 26s ease-in-out infinite}
+.roller .la,.roller .lb{animation-duration:.25s}
+.roll-spin{animation:rollspin 26s ease-in-out infinite}
+.roll-tilt{transform-box:fill-box;transform-origin:50% 100%;animation:tilt 1.6s ease-in-out infinite}
+.roller .tag{top:calc(100% + var(--u)*1.2)}
+.tag-special{background:#ff4f9a;box-shadow:0 0 0 1px #ffc2dd,0 0 8px #ff8fc8aa}
 .shadow{position:absolute;left:10%;right:10%;bottom:calc(var(--u)*-.6);height:calc(var(--u)*1.4);background:#0e0c2e66;z-index:-1}
 .bub{position:absolute;bottom:calc(100% + var(--u)*2);left:0;width:max-content;max-width:calc(var(--u)*26);padding:calc(var(--u)*1.2) calc(var(--u)*1.6);font-size:clamp(7px,calc(var(--u)*1.9),12px);line-height:1.35;color:#120f33;background:#fff;box-shadow:-3px 0 #120f33,3px 0 #120f33,0 -3px #120f33,0 3px #120f33,0 6px 0 3px #0e0c2e44;animation:pop .45s steps(5) both;z-index:5}
 .bub::after{content:"";position:absolute;left:calc(var(--u)*3);bottom:-9px;width:9px;height:9px;background:#fff;box-shadow:3px 0 #120f33,-3px 0 #120f33,0 3px #120f33}
@@ -473,6 +608,9 @@ repeating-linear-gradient(0deg,#c58d4e 0 calc(var(--u0)*14),#b97f42 calc(var(--u
 @keyframes sit{0%,100%{transform:translateY(0)}50%{transform:translateY(-.4px)}}
 @keyframes blink{0%{opacity:1}50%{opacity:0}}
 @keyframes talk{0%{opacity:1}50%{opacity:.2}}
+@keyframes roll{0%{left:8%}18%{left:30%}30%{left:26%}52%{left:62%}64%{left:58%}82%{left:78%}100%{left:8%}}
+@keyframes rollspin{0%,16%{transform:scaleX(1)}20%,48%{transform:scaleX(-1)}52%,78%{transform:scaleX(1)}84%,100%{transform:scaleX(-1)}}
+@keyframes tilt{0%,100%{transform:translate(2px,2px) rotate(0)}25%{transform:translate(2px,2px) rotate(-3deg)}75%{transform:translate(2px,2px) rotate(3deg)}}
 @keyframes walkx{0%{left:2%}50%{left:92%}100%{left:2%}}
 @keyframes flip{0%{transform:scaleX(1)}50%,100%{transform:scaleX(-1)}}
 @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(calc(var(--u)*-1))}}
@@ -496,10 +634,15 @@ repeating-linear-gradient(0deg,#c58d4e 0 calc(var(--u0)*14),#b97f42 calc(var(--u
 @keyframes rise{0%{transform:translateY(0) rotate(0);opacity:0}10%{opacity:.8}100%{transform:translateY(-110vh) rotate(180deg);opacity:0}}
 @media (max-width:700px){
  .po-scene{--u0:4.2px}
- .win{width:calc(var(--u0)*38);height:calc(var(--u0)*30);top:7%}
- .group{left:auto;right:3%;top:7%;width:calc(var(--u0)*40)}.l3{display:none}
- .st{--k:.55;bottom:calc(42% - var(--u0)*7)}.s1{left:1%}.s2{left:26%}.s3{left:51%}.s4{left:82%}
+ .win{left:3%;width:calc(var(--u0)*32);height:calc(var(--u0)*30);top:calc(var(--header-h,0px) + 2%)}
+ .group{left:auto;right:3%;top:calc(var(--header-h,0px) + 2%);width:calc(var(--u0)*44)}
+ .plaque{font-size:6px}
+ .lamp{display:none}
+ .wall{bottom:58%}.floor{top:42%}.plant{display:none}
+ .st{--k:.7;bottom:calc(58% - var(--u0)*6)}.s1{left:1%}.s2{left:34%}.s3{left:67%}
+ .s5{left:12%;bottom:34%}.s4{left:70%;bottom:34%}
  .tag{font-size:7px;padding:0 4px}
+ .roller{bottom:14%}
  .bub{font-size:8px}
  .wm-e{width:28vw}.wm-l{width:24vw}
 }
