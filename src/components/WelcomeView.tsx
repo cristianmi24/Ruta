@@ -248,6 +248,40 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
           </div>
         </div>
       </section>
+      {/* Horario de Atención */}
+      <section className="rounded-3xl bg-[#FFFDF9]/95 border-2 border-[#E8D5B5] shadow-sm p-6 sm:p-8 flex flex-col md:flex-row items-center gap-6 justify-between">
+        <div className="space-y-2">
+          <span className="text-xs uppercase tracking-wider text-[#059669] font-bold">
+            Atención a estudiantes
+          </span>
+          <h2 className="font-serif text-2xl font-bold text-[#2D1A0B]">
+            Horarios del Director Manuel Caro
+          </h2>
+          <p className="text-sm text-[#526066] font-medium max-w-md">
+            Encuentra asesoría directa y resuelve tus dudas sobre el semillero en estos días y horas.
+          </p>
+        </div>
+        <div className="flex flex-col sm:flex-row gap-4 shrink-0">
+          <div className="bg-[#FAF3E6] border border-[#E8D5B5] rounded-xl p-4 flex items-center gap-3 shadow-xs">
+            <div className="w-10 h-10 rounded-full bg-[#059669] flex items-center justify-center">
+              <span className="text-lg">📅</span>
+            </div>
+            <div>
+              <p className="text-sm font-bold text-[#2D1A0B]">Martes</p>
+              <p className="text-xs text-[#526066] font-medium">3:00 p.m. a 4:00 p.m.</p>
+            </div>
+          </div>
+          <div className="bg-[#FAF3E6] border border-[#E8D5B5] rounded-xl p-4 flex items-center gap-3 shadow-xs">
+            <div className="w-10 h-10 rounded-full bg-[#059669] flex items-center justify-center">
+              <span className="text-lg">📅</span>
+            </div>
+            <div>
+              <p className="text-sm font-bold text-[#2D1A0B]">Miércoles y Viernes</p>
+              <p className="text-xs text-[#526066] font-medium">9:00 a.m. a 10:00 a.m.</p>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   );
 };
