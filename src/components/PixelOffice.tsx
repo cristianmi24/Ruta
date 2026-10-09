@@ -69,6 +69,7 @@ const TEAM = {
   daniela: { pal: mk('#ffcf3f', '#e6b322', '#f2c29b', '#6b3a1e'), long: true },
   daniel: { pal: mk('#3a7bd5', '#2c62b0', '#c68642', '#2a1a0e'), long: false },
   sami: { pal: mk('#ff9fd0', '#f47cbb', '#f6d5b8', '#3b2414', '#4a6fb5'), long: true },
+  jeffrey: { pal: mk('#ff9a4d', '#e07a2d', '#f6d5b8', '#8a5a2b', '#2b2f6b'), long: false },
   andrea: { pal: mk('#f87171', '#e05252', '#c68642', '#1a1330'), long: true }
 };
 
@@ -203,6 +204,7 @@ const WALKERS: WalkerCfg[] = [
   { name: 'Yuliana', y: 11, s: 1.2, dur: 92, delay: -48, x: 14, ...TEAM.yuliana, every: 0, say: [] },
   { name: 'Jesús', y: 18, s: 1.1, dur: 81, delay: -66, x: 60, ...TEAM.jesus, every: 0, say: [] },
   { name: 'Mafe', y: 7, s: 1.25, dur: 104, delay: -30, x: 80, ...TEAM.mafe, every: 4600, say: ['¿Quieren postres?'] },
+  { name: 'Jeffrey', y: 16, s: 1.15, dur: 98, delay: -55, x: 50, ...TEAM.jeffrey, every: 0, say: [] },
   { name: 'Sami', y: 14, s: 1.15, dur: 86, delay: -78, x: 30, ...TEAM.sami, every: 0, say: [], sparkle: true, special: 'sami' }
 ];
 
@@ -377,16 +379,16 @@ const Plant = ({ cls }: { cls: string }) => (
 
 /* ── retrato grupal (cuadro de la pared) ── */
 const PORTRAIT_BACK = [TEAM.manuel, TEAM.jesus, TEAM.cristian, TEAM.daniel, TEAM.daniela, TEAM.andrea];
-const PORTRAIT_FRONT = [TEAM.yuliana, TEAM.andreina, TEAM.sami, TEAM.mafe, TEAM.leidy];
+const PORTRAIT_FRONT = [TEAM.yuliana, TEAM.andreina, TEAM.sami, TEAM.mafe, TEAM.leidy, TEAM.jeffrey];
 
 const GroupPortrait = () => (
   <div className="fr group" style={{ '--d': '0s' } as CSSProperties}>
     <div className="mat">
-      <svg viewBox="0 0 74 23" shapeRendering="crispEdges" role="img" aria-label="Retrato del equipo del semillero">
-        <rect x="0" y="0" width="74" height="23" fill="#ffe9c7" />
-        <rect x="0" y="0" width="74" height="9" fill="#ffd9a8" />
+      <svg viewBox="0 0 80 23" shapeRendering="crispEdges" role="img" aria-label="Retrato del equipo del semillero">
+        <rect x="0" y="0" width="80" height="23" fill="#ffe9c7" />
+        <rect x="0" y="0" width="80" height="9" fill="#ffd9a8" />
         <rect x="6" y="2" width="2" height="2" fill="#fff6" />
-        <rect x="66" y="3" width="2" height="2" fill="#fff6" />
+        <rect x="75" y="3" width="2" height="2" fill="#fff6" />
         {PORTRAIT_BACK.map((p, i) => (
           <g key={i} transform={`translate(${1 + i * 12} 1)`}>
             {px(bodyFor(p.long).slice(0, 10), p.pal)}
@@ -563,7 +565,7 @@ repeating-linear-gradient(0deg,#c58d4e 0 calc(var(--u0)*14),#b97f42 calc(var(--u
 .fr{position:absolute;top:8%;width:calc(var(--u0)*17);background:#fffdf9;padding:calc(var(--u0)*1);border:1px solid #2d1a0b26;border-radius:4px;box-shadow:0 6px 18px -8px #2d1a0b55;z-index:1;transform-origin:50% 0;animation:sway 9s ease-in-out infinite;animation-delay:var(--d)}
 .mat{width:100%;height:100%;display:grid;place-items:center;padding:calc(var(--u0)*1.2);border:1px solid #2d1a0b14;border-radius:2px}
 .mat svg{display:block;width:100%;height:auto}
-.fr.group{width:calc(var(--u0)*52);padding:calc(var(--u0)*1.2) calc(var(--u0)*1.2) calc(var(--u0)*.6)}
+.fr.group{width:calc(var(--u0)*56);padding:calc(var(--u0)*1.2) calc(var(--u0)*1.2) calc(var(--u0)*.6)}
 .fr.group .mat{padding:0;overflow:hidden}
 .plaque{display:block;margin:calc(var(--u0)*.6) auto 0;width:max-content;max-width:100%;padding:1px 6px;font-size:clamp(6px,calc(var(--u0)*1.25),10px);color:#4a2d16;background:#f3dcb4;border:1px solid #c9a36e;border-radius:2px;letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .group{left:58%;top:calc(var(--header-h,0px) + 2%)}
@@ -635,7 +637,7 @@ repeating-linear-gradient(0deg,#c58d4e 0 calc(var(--u0)*14),#b97f42 calc(var(--u
 @media (max-width:700px){
  .po-scene{--u0:4.2px}
  .win{left:3%;width:calc(var(--u0)*32);height:calc(var(--u0)*30);top:calc(var(--header-h,0px) + 2%)}
- .group{left:auto;right:3%;top:calc(var(--header-h,0px) + 2%);width:calc(var(--u0)*44)}
+ .group{left:auto;right:3%;top:calc(var(--header-h,0px) + 2%);width:calc(var(--u0)*46)}
  .plaque{font-size:6px}
  .lamp{display:none}
  .wall{bottom:58%}.floor{top:42%}.plant{display:none}
