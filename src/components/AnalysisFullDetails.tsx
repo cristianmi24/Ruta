@@ -40,8 +40,8 @@ export const AnalysisFullDetails: React.FC<{ analysis: AnalysisResult; projects:
         familiaridad_ia: p.aiExperience
       },
       intereses: {
-        curiosidades: (a.curiosityQuestions || '').split('\n').filter(Boolean),
-        formas_de_investigar: (a.preferredActivities || '').split(',').filter(Boolean),
+        curiosidades: Array.isArray(a.curiosityQuestions) ? a.curiosityQuestions : (a.curiosityQuestions || '').split('\n').filter(Boolean),
+        formas_de_investigar: Array.isArray(a.preferredActivities) ? a.preferredActivities : (a.preferredActivities || '').split(',').filter(Boolean),
         continuidad: a.continuationPreference
       },
       inquietud: {

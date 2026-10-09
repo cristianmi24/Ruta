@@ -167,29 +167,81 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
   const handleDownloadPDF = async () => {
     try {
       setDownloadingFormat('pdf');
-      const customAnalysis: AnalysisResult = {
-        ...analysis,
-        routeType: activePerspective.routeType,
-        correspondenceScore: activePerspective.correspondenceScore,
-        correspondenceLevel: activePerspective.correspondenceLevel,
-        profileArchetype: activePerspective.archetype,
-        primaryLineName: activePerspective.primaryLineName,
-        relatedProjects: activePerspective.relatedProjects,
-        whyExplanation: activePerspective.whyExplanation,
-        proposedProject: {
-          tentativeTitle: activeOption.tentativeTitle,
-          tentativeQuestion: activeOption.tentativeQuestion,
-          tentativeObjective: activeOption.tentativeObjective,
-          centralConcepts: activeOption.centralConcepts,
-          possibleContextPopulation: activeOption.possibleContextPopulation,
-          possibleContribution: activeOption.possibleContribution,
-          nextSteps: activeOption.nextSteps,
-          statusLabel: 'PROPUESTA SELECCIONADA POR EL ESTUDIANTE'
+      const { getPdfHtml } = await import('../services/pdfTemplate');
+      const p = analysis.studentProfile || {};
+      const a = analysis.studentAnswers || {};
+      
+      const data = {
+        id_evaluacion: analysis.id,
+        fecha: new Date().toLocaleDateString('es-ES'),
+        usuario: {
+          nombre: p.name || 'Estudiante',
+          programa: p.program || '',
+          semestre: p.semester || '',
+          correo: p.email || '',
+          telefono: p.phone || '',
+          vinculacion: 'Estudiante'
         },
-        proposedProjectOptions: projectOptions,
-        selectedProjectOptionId: selectedOptionId
+        perfil: {
+          arquetipo: {
+            nombre: activePerspective.archetype || 'Analista',
+            emoji: '🧠',
+            subtitulo: 'Perfil detectado por IA',
+            descripcion: activePerspective.whyExplanation || 'Perfil técnico'
+          },
+          puntaje_global: activePerspective.correspondenceScore || 80,
+          nivel_correspondencia: activePerspective.correspondenceLevel || 'Alta correspondencia',
+          experiencia_previa: p.researchExperience || '',
+          formacion_tecnica: p.techExperience || '',
+          familiaridad_ia: p.aiExperience || ''
+        },
+        intereses: {
+          curiosidades: Array.isArray(a.curiosityQuestions) ? a.curiosityQuestions : (a.curiosityQuestions || '').split('\n').filter(Boolean),
+          formas_de_investigar: Array.isArray(a.preferredActivities) ? a.preferredActivities : (a.preferredActivities || '').split(',').filter(Boolean),
+          continuidad: a.continuationPreference || ''
+        },
+        inquietud: {
+          problema: a.problemToInvestigate || '',
+          investigacion_sonada: a.dreamResearch || '',
+          meta_6_meses: a.sixMonthsDiscovery || '',
+          idea_divergente: a.divergentProjectIdea || ''
+        },
+        investigaciones_relacionadas: (activePerspective.relatedProjects || []).map((p: any) => ({
+          codigo: p.code,
+          titulo: p.title,
+          afinidad: 85,
+          porque_se_relaciona: p.description
+        })),
+        analisis: {
+          parrafos: [activePerspective.whyExplanation, activePerspective.shortDescription].filter(Boolean),
+          ruta: activePerspective.routeType || 'EXPLORAR',
+          descripcion_ruta: activeOption.whyThisOption
+        },
+        reporte_personalizado: {
+          saludo: `Hola ${p.name?.split(' ')[0] || 'Estudiante'}, revisamos tu perfil`,
+          donde_entrar: activeOption.tentativeObjective,
+          proyectos_participar: projectOptions.map(po => ({
+            projectCode: po.badge,
+            projectTitle: po.tentativeTitle,
+            whatYouCanDo: po.whyThisOption
+          }))
+        },
+        linea_sugerida: activePerspective.primaryLineName || '',
+        proximos_pasos: activeOption.nextSteps || []
       };
-      await generatePDFReport(customAnalysis, { includeAdminSection: false });
+
+      const html = getPdfHtml(data);
+      const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      
+      const printWindow = window.open(url, '_blank');
+      if (printWindow) {
+        printWindow.onload = () => {
+          setTimeout(() => {
+            printWindow.print();
+          }, 500);
+        };
+      }
     } catch (e) {
       console.error('Error generating PDF:', e);
     } finally {
