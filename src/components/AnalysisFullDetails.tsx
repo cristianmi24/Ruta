@@ -1,7 +1,8 @@
 import React from 'react';
-import { Sparkles, ClipboardList, Compass, Layers, Heart } from 'lucide-react';
+import { Sparkles, ClipboardList, Compass, Layers, Heart, Download } from 'lucide-react';
 import { AnalysisResult, ResearchProject } from '../types';
 import { CLOSING_MESSAGE } from '../data/closingMessage';
+import { getPdfHtml } from '../services/pdfTemplate';
 
 /** Para coordinación: todo lo que respondió el estudiante y el reporte completo generado por Qwen. */
 export const AnalysisFullDetails: React.FC<{ analysis: AnalysisResult; projects: ResearchProject[] }> = ({ analysis, projects }) => {
@@ -11,6 +12,82 @@ export const AnalysisFullDetails: React.FC<{ analysis: AnalysisResult; projects:
   const projectName = (id: string) => {
     const found = projects.find(x => x.id === id || x.code === id);
     return found ? `${found.code} · ${found.title}` : id;
+  };
+
+  const handleDownloadPdf = () => {
+    const data = {
+      id_evaluacion: analysis.id,
+      fecha: new Date().toLocaleDateString('es-ES'),
+      usuario: {
+        nombre: p.name,
+        programa: p.program,
+        semestre: p.semester,
+        correo: p.email,
+        telefono: p.phone,
+        vinculacion: 'Estudiante'
+      },
+      perfil: {
+        arquetipo: {
+          nombre: q?.model || 'Analista',
+          emoji: '🧠',
+          subtitulo: 'Perfil detectado por IA',
+          descripcion: q?.contrastingNarrative || 'Perfil técnico'
+        },
+        puntaje_global: analysis.correspondenceScore || 80,
+        nivel_correspondencia: (analysis.correspondenceScore || 0) > 75 ? 'Alta correspondencia' : 'Media correspondencia',
+        experiencia_previa: p.researchExperience,
+        formacion_tecnica: p.techExperience,
+        familiaridad_ia: p.aiExperience
+      },
+      intereses: {
+        curiosidades: Array.isArray(a.curiosityQuestions) ? a.curiosityQuestions : (a.curiosityQuestions || '').split('\n').filter(Boolean),
+        formas_de_investigar: Array.isArray(a.preferredActivities) ? a.preferredActivities : (a.preferredActivities || '').split(',').filter(Boolean),
+        continuidad: a.continuationPreference
+      },
+      inquietud: {
+        problema: a.problemToInvestigate,
+        investigacion_sonada: a.dreamResearch,
+        meta_6_meses: a.sixMonthsDiscovery,
+        idea_divergente: a.divergentProjectIdea
+      },
+      investigaciones_relacionadas: (q?.projectsYouCanDo || []).map((p: any) => ({
+        codigo: p.projectCode,
+        titulo: p.projectTitle,
+        afinidad: 85,
+        porque_se_relaciona: p.whatYouCanDo
+      })),
+      analisis: {
+        parrafos: [q?.programmingAffinityNote, q?.internationalDimensionNote].filter(Boolean),
+        ruta: analysis.routeType || 'EXPLORAR',
+        descripcion_ruta: q?.whereYouCanEnter
+      },
+      reporte_personalizado: {
+        saludo: `Hola ${p.name?.split(' ')[0] || ''}, revisamos tu perfil`,
+        donde_entrar: q?.whereYouCanEnter,
+        proyectos_participar: q?.projectsYouCanDo || []
+      },
+      linea_sugerida: analysis.primaryLineName,
+      proximos_pasos: [
+        "Revisar el informe detalladamente.",
+        "Asistir al horario de atención del Director Manuel Caro (Martes de 3 a 4 pm).",
+        "Definir el proyecto a iniciar."
+      ]
+    };
+
+    const html = getPdfHtml(data);
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    
+    // Abrir en nueva ventana e imprimir automáticamente
+    const printWindow = window.open(url, '_blank');
+    if (printWindow) {
+      printWindow.onload = () => {
+        // Pequeño delay para asegurar que los estilos de fuentes se carguen antes de imprimir
+        setTimeout(() => {
+          printWindow.print();
+        }, 500);
+      };
+    }
   };
 
   const rows: [string, string | string[] | undefined][] = [
@@ -66,6 +143,8 @@ export const AnalysisFullDetails: React.FC<{ analysis: AnalysisResult; projects:
 
   return (
     <div className="space-y-6">
+
+
       {/* Reporte completo de Qwen */}
       {q && (
         <section className="rounded-2xl border-2 border-[#10B981] bg-[#FFFDF9] p-5 sm:p-6 space-y-5">

@@ -3,3 +3,4 @@ allowBuilds:
   core-js: false
   esbuild: false
   protobufjs: false
+  puppeteer: set this to true or false
