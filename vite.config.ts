@@ -14,9 +14,15 @@ function apiDevServer(): Plugin {
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
         if (!req.url?.startsWith('/api/')) return next();
-        const url = new URL(req.url, 'http://localhost');
-        const file = path.resolve(import.meta.dirname, `.${url.pathname}.ts`);
-        if (!file.startsWith(path.resolve(import.meta.dirname, 'api')) || url.pathname.includes('/_') || !fs.existsSync(file)) {
+        const url = new URL(req.url!, 'http://localhost');
+        let pathname = url.pathname;
+        const matchInforme = pathname.match(/^\/api\/informe\/([^/]+)\/(pdf|docx)$/);
+        if (matchInforme) {
+          pathname = `/api/informe/[id]/${matchInforme[2]}`;
+          url.searchParams.set('id', matchInforme[1]); 
+        }
+        const file = path.resolve(import.meta.dirname, `.${pathname}.ts`);
+        if (!file.startsWith(path.resolve(import.meta.dirname, 'api')) || pathname.includes('/_') || !fs.existsSync(file)) {
           res.statusCode = 404;
           return res.end(JSON.stringify({ error: 'No encontrado' }));
         }

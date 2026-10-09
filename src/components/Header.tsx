@@ -103,17 +103,8 @@ export const Header: React.FC<HeaderProps> = ({
     ));
 
   return (
-    <>
-      {/* Banner superior de horarios */}
-      <div className="bg-[#047857] text-[#FFFDF9] text-xs sm:text-sm font-bold py-2 px-4 text-center flex items-center justify-center gap-2 relative z-50">
-        <span className="text-lg">🕒</span>
-        <span>
-          <strong>Atención Director Manuel Caro:</strong> Martes de 3:00 a 4:00 p.m. | Miércoles y Viernes de 9:00 a 10:00 a.m.
-        </span>
-      </div>
-
-      <header ref={headerRef} className="sticky top-0 z-40 bg-[#FFFDF9]/95 backdrop-blur-md border-b-2 border-[#E8D5B5] px-3 sm:px-6 md:px-8 py-2.5 transition-all shadow-xs">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 sm:gap-4">
+    <header ref={headerRef} className="sticky top-0 z-40 bg-[#FFFDF9]/95 backdrop-blur-md border-b-2 border-[#E8D5B5] px-3 sm:px-6 md:px-8 py-2.5 transition-all shadow-xs">
+      <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 sm:gap-4">
         {/* Zone 1: Brand Zone con AMBOS Logos Oficiales (LabSIE y EduTLAN) */}
         <button
           onClick={() => onNavigate('welcome')}
@@ -232,6 +223,5 @@ export const Header: React.FC<HeaderProps> = ({
         </nav>
       )}
     </header>
-    </>
   );
 };

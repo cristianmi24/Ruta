@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, ClipboardList, Compass, Layers, Heart } from 'lucide-react';
+import { Sparkles, ClipboardList, Compass, Layers, Heart, Download } from 'lucide-react';
 import { AnalysisResult, ResearchProject } from '../types';
 import { CLOSING_MESSAGE } from '../data/closingMessage';
 
@@ -66,6 +66,18 @@ export const AnalysisFullDetails: React.FC<{ analysis: AnalysisResult; projects:
 
   return (
     <div className="space-y-6">
+      {/* Botones de acción superior */}
+      <div className="flex justify-end gap-3">
+        <a 
+          href={`/api/informe/${analysis.id}/pdf`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-[#0F5132] text-white rounded-lg font-bold text-sm hover:bg-[#146c43] transition-colors shadow-sm"
+        >
+          <Download className="w-4 h-4" /> Informe Admin PDF
+        </a>
+      </div>
+
       {/* Reporte completo de Qwen */}
       {q && (
         <section className="rounded-2xl border-2 border-[#10B981] bg-[#FFFDF9] p-5 sm:p-6 space-y-5">

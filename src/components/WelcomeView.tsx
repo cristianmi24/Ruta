@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowRight, Compass, Library, Sparkles, Layers, Lock, Brain, Gamepad2, BarChart3, GraduationCap } from 'lucide-react';
+import { ArrowRight, Compass, Library, Sparkles, Layers, Lock, Brain, Gamepad2, BarChart3, GraduationCap, Clock } from 'lucide-react';
 import { ResearchProject, ResearchLine } from '../types';
 
 interface WelcomeViewProps {
@@ -248,39 +248,97 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
           </div>
         </div>
       </section>
-      {/* Horario de Atención */}
-      <section className="rounded-3xl bg-[#FFFDF9]/95 border-2 border-[#E8D5B5] shadow-sm p-6 sm:p-8 flex flex-col md:flex-row items-center gap-6 justify-between">
-        <div className="space-y-2">
-          <span className="text-xs uppercase tracking-wider text-[#059669] font-bold">
-            Atención a estudiantes
-          </span>
-          <h2 className="font-serif text-2xl font-bold text-[#2D1A0B]">
-            Horarios del Director Manuel Caro
-          </h2>
-          <p className="text-sm text-[#526066] font-medium max-w-md">
-            Encuentra asesoría directa y resuelve tus dudas sobre el semillero en estos días y horas.
-          </p>
-        </div>
-        <div className="flex flex-col sm:flex-row gap-4 shrink-0">
-          <div className="bg-[#FAF3E6] border border-[#E8D5B5] rounded-xl p-4 flex items-center gap-3 shadow-xs">
-            <div className="w-10 h-10 rounded-full bg-[#059669] flex items-center justify-center">
-              <span className="text-lg">📅</span>
-            </div>
-            <div>
-              <p className="text-sm font-bold text-[#2D1A0B]">Martes</p>
-              <p className="text-xs text-[#526066] font-medium">3:00 p.m. a 4:00 p.m.</p>
-            </div>
+      {/* Horario de Atención - Formato Tabla */}
+      <section className="relative overflow-hidden rounded-3xl bg-[#F7F9F8] border border-[#E5E9E6] shadow-sm p-6 sm:p-8 md:p-10 mb-8">
+        <div className="flex flex-col md:flex-row items-center gap-6 mb-8 relative z-10">
+          <div className="w-20 h-20 shrink-0 rounded-full bg-white flex items-center justify-center shadow-sm border border-[#E5E9E6]">
+            <Clock className="w-10 h-10 text-[#305C55]" strokeWidth={1.5} />
           </div>
-          <div className="bg-[#FAF3E6] border border-[#E8D5B5] rounded-xl p-4 flex items-center gap-3 shadow-xs">
-            <div className="w-10 h-10 rounded-full bg-[#059669] flex items-center justify-center">
-              <span className="text-lg">📅</span>
-            </div>
-            <div>
-              <p className="text-sm font-bold text-[#2D1A0B]">Miércoles y Viernes</p>
-              <p className="text-xs text-[#526066] font-medium">9:00 a.m. a 10:00 a.m.</p>
-            </div>
+          <div className="text-center md:text-left">
+            <h2 className="font-serif text-3xl md:text-4xl font-extrabold text-[#203D37]">
+              Horario de atención
+            </h2>
+            <p className="text-[#596F69] text-base md:text-lg font-medium mt-1">
+              Encuentro en el Semillero con el Director Manuel Fernando Caro Piñeres
+            </p>
           </div>
         </div>
+
+        <div className="overflow-x-auto relative z-10 rounded-xl shadow-sm border border-[#D5DDD9] bg-white">
+          <table className="w-full text-center text-sm md:text-base border-collapse min-w-[700px]">
+            <thead>
+              <tr className="text-white">
+                <th className="bg-[#244941] font-bold p-4 border-r border-[#305C55]/50 whitespace-nowrap w-[220px]">
+                  <div className="flex items-center justify-center gap-2">
+                    <Clock className="w-4 h-4" /> Hora
+                  </div>
+                </th>
+                <th className="bg-[#305C55] font-bold p-4 border-r border-[#41746B]/50 w-[16%]">Lunes</th>
+                <th className="bg-[#305C55] font-bold p-4 border-r border-[#41746B]/50 w-[16%]">Martes</th>
+                <th className="bg-[#305C55] font-bold p-4 border-r border-[#41746B]/50 w-[16%]">Miércoles</th>
+                <th className="bg-[#305C55] font-bold p-4 border-r border-[#41746B]/50 w-[16%]">Jueves</th>
+                <th className="bg-[#305C55] font-bold p-4 w-[16%]">Viernes</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white">
+              {/* Row 1 */}
+              <tr className="border-b border-[#E5E9E6]">
+                <td className="p-4 font-bold text-[#425953] bg-[#F9FAFA]">8:00 a. m. – 10:00 a. m.</td>
+                <td className="p-4 bg-[#F2F5F4]"></td>
+                <td className="p-4 bg-[#F2F5F4]"></td>
+                <td className="p-4 bg-[#E6EFEA] border-x border-white">
+                  <div className="flex flex-col items-center justify-center gap-1 font-bold text-[#305C55]">
+                    <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[#305C55]"></div> Atención</div>
+                    <span className="text-[11px] font-normal text-[#41746B]">(9:00 - 10:00)</span>
+                  </div>
+                </td>
+                <td className="p-4 bg-[#F2F5F4]"></td>
+                <td className="p-4 bg-[#E6EFEA] border-l border-white">
+                  <div className="flex flex-col items-center justify-center gap-1 font-bold text-[#305C55]">
+                    <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[#305C55]"></div> Atención</div>
+                    <span className="text-[11px] font-normal text-[#41746B]">(9:00 - 10:00)</span>
+                  </div>
+                </td>
+              </tr>
+              {/* Row 2 */}
+              <tr className="border-b border-[#E5E9E6]">
+                <td className="p-4 font-bold text-[#425953] bg-[#F9FAFA]">10:00 a. m. – 12:00 m.</td>
+                <td className="p-4 bg-[#F2F5F4]"></td>
+                <td className="p-4 bg-[#F2F5F4]"></td>
+                <td className="p-4 bg-[#F2F5F4]"></td>
+                <td className="p-4 bg-[#F2F5F4]"></td>
+                <td className="p-4 bg-[#F2F5F4]"></td>
+              </tr>
+              {/* Row 3 */}
+              <tr className="border-b border-[#E5E9E6]">
+                <td className="p-4 font-bold text-[#425953] bg-[#F9FAFA]">2:00 p. m. – 4:00 p. m.</td>
+                <td className="p-4 bg-[#F2F5F4]"></td>
+                <td className="p-4 bg-[#E6EFEA] border-x border-white">
+                  <div className="flex flex-col items-center justify-center gap-1 font-bold text-[#305C55]">
+                    <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[#305C55]"></div> Atención</div>
+                    <span className="text-[11px] font-normal text-[#41746B]">(3:00 - 4:00)</span>
+                  </div>
+                </td>
+                <td className="p-4 bg-[#F2F5F4]"></td>
+                <td className="p-4 bg-[#F2F5F4]"></td>
+                <td className="p-4 bg-[#F2F5F4]"></td>
+              </tr>
+              {/* Row 4 */}
+              <tr>
+                <td className="p-4 font-bold text-[#425953] bg-[#F9FAFA]">4:00 p. m. – 6:00 p. m.</td>
+                <td className="p-4 bg-[#F2F5F4]"></td>
+                <td className="p-4 bg-[#F2F5F4]"></td>
+                <td className="p-4 bg-[#F2F5F4]"></td>
+                <td className="p-4 bg-[#F2F5F4]"></td>
+                <td className="p-4 bg-[#F2F5F4]"></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        
+        {/* Decoraciones visuales abstractas similares a la imagen */}
+        <div className="absolute top-0 right-0 w-64 h-64 bg-[#EBE0C9] rounded-full mix-blend-multiply filter blur-3xl opacity-50 translate-x-1/3 -translate-y-1/3 pointer-events-none"></div>
+        <div className="absolute bottom-0 left-0 w-80 h-80 bg-[#C8DCD5] rounded-full mix-blend-multiply filter blur-3xl opacity-50 -translate-x-1/3 translate-y-1/3 pointer-events-none"></div>
       </section>
     </div>
   );
