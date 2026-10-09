@@ -1,0 +1,6 @@
+{
+  "name": "LabSIE · Ruta Investigativa",
+  "description": "De tus intereses a una posible investigación. Plataforma de orientación investigativa del Semillero LabSIE del Grupo EduTLAN.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,129 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: light;
+  --font-serif: "Lora", Georgia, Cambria, "Times New Roman", Times, serif;
+  --font-sans: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --color-canvas: #F7F3ED;
+  --color-surface: #FFFDF9;
+  --color-primary: #10B981;
+  --color-primary-dark: #059669;
+  --color-primary-hover: #047857;
+  --color-primary-light: #ECFDF5;
+  --color-text-main: #24302F;
+  --color-muted: #526066;
+  --color-border-main: #CCD4CF;
+  --color-accent: #C79A52;
+  --color-success: #10B981;
+  --color-warning: #C38B4A;
+  --color-danger: #B65C5C;
+}
+
+@theme {
+  --font-sans: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-serif: "Lora", Georgia, Cambria, "Times New Roman", Times, serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+/* Force light color scheme to prevent any dark mode extension or OS invert from causing white-on-white headings */
+html, body {
+  background-color: #F7F3ED !important;
+  color: #24302F !important;
+  color-scheme: light !important;
+  font-family: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Academic editorial typography with solid 100% opacity and high contrast */
+h1, h2, h3, h4, h5, h6, .academic-title {
+  font-family: "Lora", Georgia, Cambria, "Times New Roman", Times, serif;
+  opacity: 1 !important;
+  font-weight: 700;
+}
+
+/* Universal headings on light backgrounds keep solid dark text */
+h1:not([class*="text-white"]):not([class*="text-[#FFFDF9]"]):not([class*="text-emerald"]):not([class*="text-green"]):not([class*="text-teal"]):not([class*="text-amber"]):not([class*="text-rose"]):not([class*="text-cyan"]),
+h2:not([class*="text-white"]):not([class*="text-[#FFFDF9]"]):not([class*="text-emerald"]):not([class*="text-green"]):not([class*="text-teal"]):not([class*="text-amber"]):not([class*="text-rose"]):not([class*="text-cyan"]),
+h3:not([class*="text-white"]):not([class*="text-[#FFFDF9]"]):not([class*="text-emerald"]):not([class*="text-green"]):not([class*="text-teal"]):not([class*="text-amber"]):not([class*="text-rose"]):not([class*="text-cyan"]),
+h4:not([class*="text-white"]):not([class*="text-[#FFFDF9]"]):not([class*="text-emerald"]):not([class*="text-green"]):not([class*="text-teal"]):not([class*="text-amber"]):not([class*="text-rose"]):not([class*="text-cyan"]),
+h5:not([class*="text-white"]):not([class*="text-[#FFFDF9]"]):not([class*="text-emerald"]):not([class*="text-green"]):not([class*="text-teal"]):not([class*="text-amber"]):not([class*="text-rose"]):not([class*="text-cyan"]),
+h6:not([class*="text-white"]):not([class*="text-[#FFFDF9]"]):not([class*="text-emerald"]):not([class*="text-green"]):not([class*="text-teal"]):not([class*="text-amber"]):not([class*="text-rose"]):not([class*="text-cyan"]) {
+  color: #1C2624 !important;
+  opacity: 1 !important;
+}
+
+/* Labels, form controls and question titles: ALWAYS 100% solid and dark */
+label, .question-heading {
+  color: #1C2624 !important;
+  opacity: 1 !important;
+}
+
+/* Override any faded or transparent gray text to crisp high-contrast dark tone */
+[class*="text-[#6F7976]"],
+[class*="text-[#526066]"],
+.text-muted {
+  color: #33423F !important;
+  opacity: 1 !important;
+}
+
+/* Universal text elements must never be see-through or transparent */
+p, span, li, dt, dd, th, td, div {
+  opacity: 1;
+}
+
+/* Inputs, textareas and selects brought firmly forward */
+input, textarea, select {
+  color: #1C2624 !important;
+  opacity: 1 !important;
+  background-color: #FAF8F5;
+}
+
+input::placeholder, textarea::placeholder {
+  color: #637571 !important;
+  opacity: 1 !important;
+}
+
+/* Card surfaces: solid, opaque, elevated forward off background art */
+.surface-card {
+  background-color: #FFFDF9 !important;
+  border: 2px solid #CCD4CF !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  position: relative;
+  z-index: 10;
+}
+
+/* Interactive elements contrast: preserve intended white text inside colored badges and buttons */
+.btn-primary-green {
+  background-color: #10B981 !important;
+  color: #FFFFFF !important;
+  border-color: #10B981 !important;
+  opacity: 1 !important;
+}
+
+.btn-primary-green:hover {
+  background-color: #059669 !important;
+  border-color: #059669 !important;
+}
+
+.btn-primary-green * {
+  color: #FFFFFF !important;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+::-webkit-scrollbar-track {
+  background: #F7F3ED;
+}
+::-webkit-scrollbar-thumb {
+  background: #A7F3D0;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #10B981;
+}
