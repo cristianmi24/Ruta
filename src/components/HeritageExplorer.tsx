@@ -61,7 +61,7 @@ export const HeritageExplorer: React.FC<HeritageExplorerProps> = ({
   return (
     <div className="max-w-6xl mx-auto px-4 md:px-8 py-8 md:py-12">
       {/* Header */}
-      <div className="max-w-3xl mb-8 space-y-3">
+      <div className="max-w-3xl mb-8 space-y-3 rounded-2xl bg-[#FFFDF9]/90 backdrop-blur-md border border-[#CCD4CF] shadow-xs px-4 py-5 sm:px-6">
         <div className="inline-flex items-center gap-2 text-xs font-bold text-[#059669] tracking-wider uppercase">
           <span>Semillero de Investigación LabSIE</span>
           <span aria-hidden="true">·</span>
@@ -81,7 +81,7 @@ export const HeritageExplorer: React.FC<HeritageExplorerProps> = ({
       </div>
 
       {/* Líneas de Investigación Tabs / Pills */}
-      <div className="mb-6 space-y-2">
+      <div className="mb-6 space-y-2 rounded-2xl bg-[#FFFDF9]/90 backdrop-blur-md border border-[#CCD4CF] p-3 sm:p-4">
         <div className="flex items-center justify-between text-xs font-bold text-[#059669]">
           <span className="uppercase tracking-wider flex items-center gap-1.5">
             <Layers className="w-3.5 h-3.5 text-[#10B981]" />

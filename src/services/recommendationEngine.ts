@@ -36,7 +36,14 @@ export function runRecommendationEngine(
     divergentProjectIdea = '',
     continuationPreference = '',
     labsieExpectations = [],
-    additionalInterests = ''
+    additionalInterests = '',
+    personalPassions = answers.personalPassions || profile.personalPassions || [],
+    programmingInterestLevel = answers.programmingInterestLevel || profile.programmingInterestLevel || '',
+    programmingLanguages = answers.programmingLanguages || profile.programmingLanguages || [],
+    programmingExperienceSummary = answers.programmingExperienceSummary || profile.programmingExperienceSummary || '',
+    internationalProjectsInterest = answers.internationalProjectsInterest || profile.internationalProjectsInterest || '',
+    internationalMotivations = answers.internationalMotivations || profile.internationalMotivations || [],
+    preferredRole = answers.preferredRole || profile.preferredRole || ''
   } = answers;
 
   // Combine long text answers for conceptual semantic analysis
@@ -45,7 +52,11 @@ export function runRecommendationEngine(
     dreamResearch,
     sixMonthsDiscovery,
     divergentProjectIdea,
-    additionalInterests
+    additionalInterests,
+    programmingExperienceSummary,
+    ...personalPassions,
+    ...programmingLanguages,
+    ...internationalMotivations
   ].join(' ').toLowerCase();
 
   const projectAffinities: {
@@ -66,7 +77,7 @@ export function runRecommendationEngine(
     const projKeywordsLower = project.keywords.map(k => k.toLowerCase());
     const projAllTerms = [...projConceptsLower, ...projKeywordsLower, project.title.toLowerCase()];
 
-    // A. Intereses (Curiosidades Q8 + IA Interests Q14) - 25%
+    // A. Intereses (Curiosidades Q8 + IA Interests Q14 + Pasiones Vocacionales + Proyectos Internacionales) - 25%
     let interestMatches = 0;
     const matchingConceptsFound: string[] = [];
 
@@ -79,6 +90,47 @@ export function runRecommendationEngine(
       if (qLow.includes('tecnología') && (projAllTerms.some(t => t.includes('tecnología') || t.includes('gemelo') || t.includes('coil') || t.includes('sistema')))) interestMatches += 1.3;
       if (qLow.includes('diferente') || qLow.includes('condición')) interestMatches += 1.2;
     });
+
+    // Check Personal Passions (¿Qué le gusta?)
+    personalPassions.forEach(pass => {
+      const pLow = pass.toLowerCase();
+      if (pLow.includes('artificial') || pLow.includes('llm') || pLow.includes('agente')) {
+        if (projAllTerms.some(t => t.includes('ia') || t.includes('llm') || t.includes('inteligente') || t.includes('metacogn') || t.includes('generativa'))) interestMatches += 2.2;
+      }
+      if (pLow.includes('software') || pLow.includes('programación') || pLow.includes('web') || pLow.includes('móvil')) {
+        if (projAllTerms.some(t => t.includes('app') || t.includes('software') || t.includes('sistema') || t.includes('desarrollo') || t.includes('red') || t.includes('tracing'))) interestMatches += 2.0;
+      }
+      if (pLow.includes('datos') || pLow.includes('analítica')) {
+        if (project.lineId === 'line-analisis-datos-educativos' || projAllTerms.some(t => t.includes('datos') || t.includes('markov') || t.includes('tracing') || t.includes('machine learning'))) interestMatches += 2.4;
+      }
+      if (pLow.includes('gamificación') || pLow.includes('juego') || pLow.includes('lúd')) {
+        if (projAllTerms.some(t => t.includes('gamificación') || t.includes('juego') || t.includes('lúdico') || t.includes('lúdica'))) interestMatches += 2.8;
+      }
+      if (pLow.includes('didáctica') || pLow.includes('pedagogía') || pLow.includes('aula')) {
+        if (projAllTerms.some(t => t.includes('didáctica') || t.includes('aula') || t.includes('enseñanza') || t.includes('docente') || t.includes('microcurrículo'))) interestMatches += 2.0;
+      }
+      if (pLow.includes('cultural') || pLow.includes('nativa') || pLow.includes('etno')) {
+        if (projAllTerms.some(t => t.includes('cultural') || t.includes('embera') || t.includes('indígena') || t.includes('pln') || t.includes('identidad'))) interestMatches += 2.8;
+      }
+      if (pLow.includes('metacognición') || pLow.includes('autorregula')) {
+        if (project.lineId === 'line-artificial-metacognition' || projAllTerms.some(t => t.includes('metacogn') || t.includes('carina') || t.includes('cpcc') || t.includes('claustrum') || t.includes('dma'))) interestMatches += 2.8;
+      }
+    });
+
+    // Check International Projects Interest (Proyectos que abarquen otros países)
+    if (internationalProjectsInterest.includes('Mucho') || internationalProjectsInterest.includes('apasiona') || internationalMotivations.length > 0) {
+      // Proyectos con vocación internacional/intercultural o benchmarks globales
+      if (projAllTerms.some(t => t.includes('coil') || t.includes('benchmark') || t.includes('carina') || t.includes('llm') || t.includes('pln') || t.includes('traductor') || t.includes('cpcc') || t.includes('marina') || t.includes('meta-dna'))) {
+        interestMatches += 2.5;
+      }
+    }
+
+    // Check Programming affinity
+    if (programmingInterestLevel.includes('apasiona') || programmingInterestLevel.includes('gusta')) {
+      if (projAllTerms.some(t => t.includes('app') || t.includes('software') || t.includes('modelo') || t.includes('tracing') || t.includes('machine learning') || t.includes('algoritmo') || t.includes('código') || t.includes('red') || t.includes('cpcc') || t.includes('ontología'))) {
+        interestMatches += 2.2;
+      }
+    }
 
     // Check AI interests
     aiInterests.forEach(ai => {
@@ -94,7 +146,7 @@ export function runRecommendationEngine(
       if ((aiLow.includes('metacognici') || aiLow.includes('autorregula') || aiLow.includes('endógena') || aiLow.includes('object level') || aiLow.includes('meta level')) && (project.lineId === 'line-artificial-metacognition' || projAllTerms.some(t => t.includes('metacogn') || t.includes('carina') || t.includes('cpcc') || t.includes('claustrum') || t.includes('dma')))) interestMatches += 2.6;
     });
 
-    const interestScore = Math.min(100, Math.round((interestMatches / Math.max(3, (curiosityQuestions.length + aiInterests.length) * 0.4)) * 100));
+    const interestScore = Math.min(100, Math.round((interestMatches / Math.max(3, (curiosityQuestions.length + aiInterests.length + personalPassions.length) * 0.35)) * 100));
 
     // B. Actividades y Formas de Investigar (Q7 + Q9) - 15%
     let waysMatches = 0;

@@ -296,6 +296,16 @@ export async function generatePDFReport(
     addParagraph(`→ ${step}`);
   });
 
+  // SECCIÓN 13: Reporte personal (carta, dónde entrar y proyectos que puede hacer)
+  const qa = analysis.qwenAnalysis;
+  if (qa) {
+    addSectionTitle('13', 'Tu reporte de ruta investigativa');
+    (qa.warmLetter || []).forEach(parr => addParagraph(parr));
+    if (qa.whereYouCanEnter) addParagraph(`Dónde puedes entrar: ${qa.whereYouCanEnter}`);
+    (qa.projectsYouCanDo || []).forEach(pr => addParagraph(`• ${pr.projectCode} · ${pr.projectTitle}: ${pr.whatYouCanDo}`));
+    addParagraph(qa.closingNote || 'Más información en edutlan.online.');
+  }
+
   // SECCIÓN FINAL: Nota metodológica
   checkPageBreak(25);
   y += 4;
@@ -587,6 +597,16 @@ export async function generateDOCXReport(
   analysis.proposedProject.nextSteps.forEach(step => {
     children.push(createP(`→ ${step}`));
   });
+
+  // Section 13: Reporte personal
+  const qa = analysis.qwenAnalysis;
+  if (qa) {
+    children.push(createHeading('13. Tu reporte de ruta investigativa', HeadingLevel.HEADING_2));
+    (qa.warmLetter || []).forEach(parr => children.push(createP(parr)));
+    if (qa.whereYouCanEnter) children.push(createP(`Dónde puedes entrar: ${qa.whereYouCanEnter}`));
+    (qa.projectsYouCanDo || []).forEach(pr => children.push(createP(`• ${pr.projectCode} · ${pr.projectTitle}: ${pr.whatYouCanDo}`)));
+    children.push(createP(qa.closingNote || 'Más información en edutlan.online.'));
+  }
 
   // Final Methodological Note
   children.push(

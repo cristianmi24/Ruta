@@ -7,42 +7,70 @@ import React, { useState, useEffect } from 'react';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
 import { WelcomeView } from './components/WelcomeView';
+import { LinesView } from './components/LinesView';
 import { TestView } from './components/TestView';
 import { HeritageExplorer } from './components/HeritageExplorer';
 import { ResultsView } from './components/ResultsView';
 import { AdminDashboard } from './components/AdminDashboard';
 import { WelcomeModal } from './components/WelcomeModal';
 import { AdminAuthModal } from './components/AdminAuthModal';
+import PixelOffice from './components/PixelOffice';
+import { Fireworks } from './components/Fireworks';
 import { storageService, AppUser } from './services/storageService';
+import { fetchAnalyses } from './services/apiClient';
+import { revealProfilePII } from './services/dataProtection';
 import { ResearchProject, ResearchLine, AnalysisResult } from './types';
 
+// Descifra correo y teléfono solo en memoria, para mostrarlos en pantalla y en los reportes
+async function revealAnalyses(list: AnalysisResult[]): Promise<AnalysisResult[]> {
+  return Promise.all(
+    list.map(async a => {
+      const profile = await revealProfilePII(a.studentProfile);
+      return { ...a, studentProfile: profile, studentAnswers: { ...a.studentAnswers, profile } };
+    })
+  );
+}
+
 export default function App() {
-  const [currentView, setCurrentView] = useState<'welcome' | 'test' | 'heritage' | 'results' | 'admin'>('welcome');
+  const [currentView, setCurrentView] = useState<'welcome' | 'lineas' | 'test' | 'heritage' | 'results' | 'admin' | 'animacion'>('welcome');
   const [projects, setProjects] = useState<ResearchProject[]>([]);
   const [lines, setLines] = useState<ResearchLine[]>([]);
   const [analyses, setAnalyses] = useState<AnalysisResult[]>([]);
   const [currentUser, setCurrentUser] = useState<AppUser>(storageService.getCurrentUser());
   const [activeAnalysis, setActiveAnalysis] = useState<AnalysisResult | null>(null);
+  const [celebrationKey, setCelebrationKey] = useState<number | null>(null);
 
   // Semillero affiliation and popup modal state
   const [isTestUnlocked, setIsTestUnlocked] = useState<boolean>(false);
-  const [isWelcomeModalOpen, setIsWelcomeModalOpen] = useState<boolean>(true);
+  const [isWelcomeModalOpen, setIsWelcomeModalOpen] = useState<boolean>(false);
   const [welcomeModalMode, setWelcomeModalMode] = useState<'welcome' | 'locked-attempt'>('welcome');
   const [isAdminAuthModalOpen, setIsAdminAuthModalOpen] = useState<boolean>(false);
 
-  const loadData = () => {
+  const loadData = async () => {
     setProjects(storageService.getProjects());
     setLines(storageService.getLines());
-    const allAnalyses = storageService.getAnalyses();
-    setAnalyses(allAnalyses);
     setCurrentUser(storageService.getCurrentUser());
-    if (!activeAnalysis && allAnalyses.length > 0) {
-      setActiveAnalysis(allAnalyses[0]);
+
+    // La coordinación consulta la base de datos PostgreSQL (Neon); se combina con lo local por id
+    let allAnalyses = storageService.getAnalyses();
+    if (storageService.isAdminAuthenticated()) {
+      const remote = await fetchAnalyses().catch(err => {
+        console.warn('No se pudieron cargar los análisis de la base de datos:', err);
+        return [] as AnalysisResult[];
+      });
+      const byId = new Map(allAnalyses.map(a => [a.id, a]));
+      remote.forEach(r => byId.set(r.id, r));
+      allAnalyses = [...byId.values()].sort(
+        (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
     }
+    const revealed = await revealAnalyses(allAnalyses);
+    setAnalyses(revealed);
+    setActiveAnalysis(prev => prev ?? revealed[0] ?? null);
   };
 
   useEffect(() => {
-    loadData();
+    storageService.restoreCoordinatorSession().finally(() => loadData());
     const unsubscribe = storageService.subscribe(() => {
       loadData();
     });
@@ -51,6 +79,10 @@ export default function App() {
 
   const handleTestComplete = (result: AnalysisResult) => {
     setActiveAnalysis(result);
+    // Celebración al terminar la evaluación
+    const key = Date.now();
+    setCelebrationKey(key);
+    setTimeout(() => setCelebrationKey(k => (k === key ? null : k)), 8000);
     setCurrentView('results');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -86,7 +118,7 @@ export default function App() {
   };
 
   // Direct navigation with role separation protection
-  const handleNavigate = (view: 'welcome' | 'test' | 'heritage' | 'results' | 'admin') => {
+  const handleNavigate = (view: 'welcome' | 'lineas' | 'test' | 'heritage' | 'results' | 'admin' | 'animacion') => {
     if (view === 'admin') {
       if (!storageService.isAdminAuthenticated()) {
         setIsAdminAuthModalOpen(true);
@@ -99,26 +131,30 @@ export default function App() {
 
   const handleAdminAuthSuccess = () => {
     setIsAdminAuthModalOpen(false);
+    loadData();
     setCurrentView('admin');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  // Sección "Animación": solo el fondo, con un botón discreto para volver
+  if (currentView === 'animacion') {
+    return (
+      <PixelOffice>
+        <div className="min-h-screen pointer-events-none">
+          <button
+            onClick={() => handleNavigate('welcome')}
+            className="pointer-events-auto cursor-pointer fixed bottom-4 right-4 z-50 inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#FFFDF9]/95 border-2 border-[#CCD4CF] text-sm font-bold text-[#1C2624] shadow-md hover:border-[#10B981] hover:text-[#059669] transition-colors"
+          >
+            ← Volver al inicio
+          </button>
+        </div>
+      </PixelOffice>
+    );
+  }
+
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-[#F5EFE6] via-[#FAF8F5] to-[#F2EDE5] text-[#24302F] relative overflow-x-hidden">
-      {/* Fondo institucional oficial — Detrás de TODO el contenido (-z-10) */}
-      <div
-        className="pointer-events-none fixed inset-0 -z-10 overflow-hidden select-none"
-        style={{ zIndex: -10 }}
-        aria-hidden="true"
-      >
-        <img
-          src="/fondo-labsie-paisaje.svg"
-          alt=""
-          className="w-full h-full object-cover object-top opacity-15 md:opacity-20 transition-opacity"
-        />
-        {/* Velo armonizador protector — mantiene legibilidad 100% nítida */}
-        <div className="absolute inset-0 bg-[#FAF8F5]/70 pointer-events-none" />
-      </div>
+    <PixelOffice plain={currentView === 'test'}>
+    <div className="min-h-screen flex flex-col text-[#24302F] relative overflow-x-clip">
 
       {/* 3-Zone Header Contract with Route Activation Menu */}
       <Header
@@ -141,6 +177,7 @@ export default function App() {
           <WelcomeView
             onStartTest={() => handleNavigate('test')}
             onExploreHeritage={() => handleNavigate('heritage')}
+            onExploreLines={() => handleNavigate('lineas')}
             projects={projects}
             lines={lines}
             isTestUnlocked={isTestUnlocked}
@@ -151,6 +188,10 @@ export default function App() {
             onActivateRoute={handleActivateRoute}
             onDeactivateRoute={handleDeactivateRoute}
           />
+        )}
+
+        {currentView === 'lineas' && (
+          <LinesView projects={projects} onExploreHeritage={() => handleNavigate('heritage')} />
         )}
 
         {currentView === 'test' && (
@@ -197,6 +238,8 @@ export default function App() {
         )}
       </main>
 
+      {celebrationKey !== null && <Fireworks key={celebrationKey} />}
+
       {/* Institutional Footer */}
       <Footer />
 
@@ -217,5 +260,6 @@ export default function App() {
         onSuccess={handleAdminAuthSuccess}
       />
     </div>
+    </PixelOffice>
   );
 }

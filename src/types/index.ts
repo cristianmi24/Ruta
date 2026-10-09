@@ -77,11 +77,27 @@ export interface StudentProfileData {
     | string;
   techExperience: 'Básico' | 'Intermedio' | 'Avanzado' | 'Muy avanzado' | string;
   aiExperience: 'Nunca' | 'Algunas veces' | 'Ocasionalmente' | 'Frecuentemente' | 'Habitualmente' | string;
+  // Caracterización de nuevo integrante del semillero
+  personalPassions?: string[]; // Áreas y temáticas que le apasionan
+  programmingInterestLevel?: string; // Gusto y afinidad por la programación
+  programmingLanguages?: string[]; // Lenguajes y tecnologías de interés
+  programmingExperienceSummary?: string; // Qué le gustaría construir o experiencia previa
+  internationalProjectsInterest?: string; // Interés en proyectos que abarquen otros países / COIL / alianzas
+  internationalMotivations?: string[]; // Aspectos de internacionalización que le atraen
+  preferredRole?: string; // Rol soñado en el semillero
 }
 
 export interface TestAnswers {
   wantsToJoinLabSIE?: string; // Pregunta 1: Deseo de vinculación al Semillero LabSIE
   profile: StudentProfileData;
+  // INTEGRACIÓN DE NUEVOS INTEGRANTES (GUSTOS, PROGRAMACIÓN, INTERNACIONALIZACIÓN)
+  personalPassions?: string[]; // Qué le gusta al aspirante
+  programmingInterestLevel?: string; // Gusto por la programación
+  programmingLanguages?: string[]; // Lenguajes o tecnologías
+  programmingExperienceSummary?: string; // Experiencia o aplicaciones soñadas
+  internationalProjectsInterest?: string; // Proyectos que abarquen otros países
+  internationalMotivations?: string[]; // Motivaciones de proyectos internacionales
+  preferredRole?: string; // Rol preferido en el semillero
   // SECCIÓN 2 — TU CURIOSIDAD
   firstActionOnProblem: string; // Q7 (1 respuesta)
   curiosityQuestions: string[]; // Q8 (varias respuestas)
@@ -101,7 +117,7 @@ export interface TestAnswers {
   dreamResearch: string; // Q17 (respuesta larga)
   sixMonthsDiscovery: string; // Q18 (respuesta larga)
   // SECCIÓN 9 — CONEXIÓN
-  selectedLabSIEProjects: string[]; // Q19 (Proyecto 1-7)
+  selectedLabSIEProjects: string[]; // Q19 (Proyecto 1-7 o 1-28)
   divergentProjectIdea: string; // Q20 (respuesta larga)
   // SECCIÓN 10 — HEREDAR, CONECTAR O CREAR
   continuationPreference: string; // Q21 (Profundizar, Conectar, Transformar, Crear, Explorar)
@@ -212,6 +228,28 @@ export interface AnalysisResult {
   selectedPerspectiveId?: 'tecnologico' | 'pedagogico' | 'social';
   studentAnswers: TestAnswers;
   adminReview?: AdminReview;
+  qwenAnalysis?: {
+    model: string;
+    analysisTimestamp: string;
+    contrastingNarrative: string;
+    topMatchingProjects: {
+      projectCode: string;
+      projectTitle: string;
+      matchRationale: string;
+    }[];
+    programmingAffinityNote: string;
+    internationalDimensionNote: string;
+    newMemberIntegrationAdvice: string;
+    whereYouCanEnter?: string;
+    projectsYouCanDo?: {
+      projectCode: string;
+      projectTitle: string;
+      whatYouCanDo: string;
+    }[];
+    closingNote?: string;
+    warmLetter?: string[];
+  };
+  consentToken?: string; // JWT de aceptación de términos (tratamiento de datos)
 }
 
 export interface AdminReview {

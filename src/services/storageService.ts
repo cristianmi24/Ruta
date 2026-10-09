@@ -5,7 +5,8 @@ import {
   AdminReview
 } from '../types';
 import { INITIAL_PROJECTS, INITIAL_RESEARCH_LINES, DEMO_ANALYSES } from '../data/initialData';
-import { syncAnalysisToSupabase } from './supabaseClient';
+import * as api from './apiClient';
+import { revealProfilePII } from './dataProtection';
 
 const STORAGE_KEYS = {
   PROJECTS: 'labsie_research_projects_v11',
@@ -15,8 +16,6 @@ const STORAGE_KEYS = {
   SEMILLERO_AFFILIATION: 'labsie_semillero_affiliation_v11',
   ADMIN_AUTH: 'labsie_admin_authenticated_v1'
 };
-
-export const MASTER_ADMIN_KEY = 'LABSIE-ADMIN-2026-ROOT';
 
 export interface AppUser {
   id: string;
@@ -39,6 +38,35 @@ class StorageService {
 
   constructor() {
     this.initialize();
+    this.loadRemoteCatalog();
+  }
+
+  /** Proyectos y líneas guardados por la coordinación en Neon tienen prioridad sobre los locales. */
+  private async loadRemoteCatalog() {
+    try {
+      const { projects, lines } = await api.fetchCatalog();
+      if (!projects.length && !lines.length) return;
+      projects.forEach(p => {
+        const i = this.projects.findIndex(x => x.id === p.id);
+        if (i >= 0) this.projects[i] = p;
+        else this.projects.push(p);
+      });
+      lines.forEach(l => {
+        const i = this.lines.findIndex(x => x.id === l.id);
+        if (i >= 0) this.lines[i] = l;
+        else this.lines.push(l);
+      });
+      this.projects.sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true }));
+      this.persistProjects();
+      this.persistLines();
+      this.notify();
+    } catch (e) {
+      console.warn('Catálogo remoto no disponible:', e);
+    }
+  }
+
+  private pushCatalog(action: Promise<unknown>) {
+    action.catch(err => console.warn('No se pudo sincronizar el catálogo con la base de datos:', err));
   }
 
   private initialize() {
@@ -147,15 +175,6 @@ class StorageService {
     this.notify();
   }
 
-  public getAdminAccessKey(): string {
-    return MASTER_ADMIN_KEY;
-  }
-
-  public verifyAdminKey(key: string): boolean {
-    if (!key) return false;
-    return key.trim().toUpperCase() === MASTER_ADMIN_KEY.toUpperCase();
-  }
-
   public isAdminAuthenticated(): boolean {
     try {
       const val = localStorage.getItem(STORAGE_KEYS.ADMIN_AUTH);
@@ -165,44 +184,59 @@ class StorageService {
     }
   }
 
-  public loginAdmin(key: string): boolean {
-    if (this.verifyAdminKey(key)) {
-      try {
-        localStorage.setItem(STORAGE_KEYS.ADMIN_AUTH, 'true');
-      } catch (e) {
-        console.error(e);
-      }
-      this.setCurrentUser({
-        id: 'admin-01',
-        name: 'Coordinación LabSIE / EduTLAN',
-        email: 'labsie.edutlan@unicordoba.edu.co',
-        role: 'admin'
-      });
+  /** Inicia sesión de coordinación con correo y contraseña (Supabase Auth). */
+  public async loginCoordinator(email: string, password: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      const confirmed = await api.loginCoordinator(email, password);
+      this.markAdminSession(confirmed);
+      return { success: true };
+    } catch (e) {
+      return { success: false, error: e instanceof Error ? e.message : 'No fue posible iniciar sesión.' };
+    }
+  }
+
+  /** Revalida la sesión guardada contra Supabase; si ya no es válida, cierra la sesión local. */
+  public async restoreCoordinatorSession(): Promise<boolean> {
+    const email = await api.currentCoordinator();
+    if (email) {
+      this.markAdminSession(email);
       return true;
     }
+    if (this.isAdminAuthenticated() || this.currentUser.role === 'admin') this.clearAdminSession();
     return false;
   }
 
-  public logoutAdmin(): void {
+  public async logoutAdmin(): Promise<void> {
+    this.clearAdminSession();
+    api.logoutCoordinator();
+  }
+
+  private markAdminSession(email: string) {
+    try {
+      localStorage.setItem(STORAGE_KEYS.ADMIN_AUTH, 'true');
+    } catch (e) {
+      console.error(e);
+    }
+    this.setCurrentUser({
+      id: `coordinator:${email}`,
+      name: 'Coordinación LabSIE / EduTLAN',
+      email,
+      role: 'admin'
+    });
+  }
+
+  private clearAdminSession() {
     try {
       localStorage.removeItem(STORAGE_KEYS.ADMIN_AUTH);
     } catch (e) {
       console.error(e);
     }
     this.setCurrentUser({
-      id: 'student-demo',
+      id: 'guest-student',
       name: 'Estudiante LabSIE',
-      email: 'estudiante@correo.unicordoba.edu.co',
+      email: '',
       role: 'student'
     });
-  }
-
-  public setAdminRole(isAdmin: boolean) {
-    if (isAdmin) {
-      this.loginAdmin(MASTER_ADMIN_KEY);
-    } else {
-      this.logoutAdmin();
-    }
   }
 
   // --- Semillero Affiliation & Route Activation ---
@@ -251,12 +285,14 @@ class StorageService {
     }
     this.persistProjects();
     this.notify();
+    if (this.isAdminAuthenticated()) this.pushCatalog(api.saveCatalogItem('project', project));
   }
 
   public deleteProject(id: string): void {
     this.projects = this.projects.filter(p => p.id !== id);
     this.persistProjects();
     this.notify();
+    if (this.isAdminAuthenticated()) this.pushCatalog(api.deleteCatalogItem('project', id));
   }
 
   // --- Lines CRUD ---
@@ -277,12 +313,14 @@ class StorageService {
     }
     this.persistLines();
     this.notify();
+    if (this.isAdminAuthenticated()) this.pushCatalog(api.saveCatalogItem('line', line));
   }
 
   public deleteLine(id: string): void {
     this.lines = this.lines.filter(l => l.id !== id);
     this.persistLines();
     this.notify();
+    if (this.isAdminAuthenticated()) this.pushCatalog(api.deleteCatalogItem('line', id));
   }
 
   // --- Analysis Results CRUD ---
@@ -305,8 +343,6 @@ class StorageService {
     }
     this.persistAnalyses();
     this.notify();
-    // Async background sync to Supabase
-    syncAnalysisToSupabase(analysis).catch(err => console.warn('Supabase sync warning:', err));
   }
 
   public updateSelectedProjectOption(analysisId: string, optionId: string): void {
@@ -315,18 +351,27 @@ class StorageService {
       target.selectedProjectOptionId = optionId;
       this.persistAnalyses();
       this.notify();
-      syncAnalysisToSupabase(target).catch(err => console.warn('Supabase sync warning:', err));
+      // Se reenvía al servidor con los datos personales en claro (el servidor los cifra con su clave)
+      revealProfilePII(target.studentProfile)
+        .then(profile => api.submitAnalysis({ ...target, studentProfile: profile, studentAnswers: { ...target.studentAnswers, profile } }))
+        .catch(err => console.warn('No se pudo sincronizar la opción elegida:', err));
     }
   }
 
-  public updateAdminReview(analysisId: string, review: AdminReview): void {
+  public async updateAdminReview(analysisId: string, review: AdminReview): Promise<void> {
     const target = this.analyses.find(a => a.id === analysisId);
     if (target) {
       target.adminReview = review;
       this.persistAnalyses();
-      this.notify();
-      syncAnalysisToSupabase(target).catch(err => console.warn('Supabase sync warning:', err));
     }
+    if (this.isAdminAuthenticated()) {
+      try {
+        await api.saveAdminReview(analysisId, review);
+      } catch (err) {
+        console.warn('No se pudo guardar la revisión en la base de datos:', err);
+      }
+    }
+    this.notify();
   }
 
   public resetToDefaults(): void {

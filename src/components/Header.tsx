@@ -1,11 +1,12 @@
 import React from 'react';
-import { Sparkles, Lock, ShieldCheck, LogOut, KeyRound } from 'lucide-react';
+import { Sparkles, Lock, ShieldCheck, LogOut, KeyRound, Clapperboard, Home, Layers, Library, Route } from 'lucide-react';
 import { storageService, AppUser } from '../services/storageService';
 import { LabSIELogo } from './LabSIELogo';
+import { EduTLANLogo } from './EduTLANLogo';
 
 interface HeaderProps {
-  currentView: 'welcome' | 'test' | 'heritage' | 'results' | 'admin';
-  onNavigate: (view: 'welcome' | 'test' | 'heritage' | 'results' | 'admin') => void;
+  currentView: 'welcome' | 'lineas' | 'test' | 'heritage' | 'results' | 'admin' | 'animacion';
+  onNavigate: (view: 'welcome' | 'lineas' | 'test' | 'heritage' | 'results' | 'admin' | 'animacion') => void;
   currentUser: AppUser;
   isTestUnlocked?: boolean;
   onOpenWelcomeModal?: () => void;
@@ -38,132 +39,129 @@ export const Header: React.FC<HeaderProps> = ({
     }
   };
 
-  const handleLogoutAdmin = () => {
-    storageService.logoutAdmin();
+  const handleLogoutAdmin = async () => {
+    await storageService.logoutAdmin();
     onNavigate('welcome');
   };
 
+  const openRoute = () => {
+    if (!isTestUnlocked && onOpenWelcomeModal) {
+      onOpenWelcomeModal();
+    } else {
+      onNavigate('test');
+    }
+  };
+
+  type View = HeaderProps['currentView'];
+  const NAV: { view: View; label: string; icon: typeof Home; onClick?: () => void; locked?: boolean }[] = [
+    { view: 'welcome', label: 'Inicio', icon: Home },
+    { view: 'lineas', label: 'Líneas', icon: Layers },
+    { view: 'heritage', label: 'Proyectos', icon: Library },
+    { view: 'test', label: 'Mi ruta', icon: Route, onClick: openRoute, locked: !isTestUnlocked },
+    { view: 'animacion', label: 'Animación', icon: Clapperboard }
+  ];
+
+  const navItem = (active: boolean, compact = false) =>
+    `cursor-pointer inline-flex items-center gap-1.5 whitespace-nowrap rounded-full font-bold transition-colors ${
+      compact ? 'shrink-0 px-3 py-1.5 text-xs border' : 'px-3.5 py-2 text-sm'
+    } ${
+      active
+        ? 'bg-[#059669] text-[#FFFDF9] border-[#059669] shadow-sm'
+        : compact
+          ? 'bg-[#FFFDF9] text-[#2D1A0B] border-[#E8D5B5]'
+          : 'text-[#2D1A0B] hover:bg-[#FAF3E6] hover:text-[#047857]'
+    }`;
+
+  const renderNav = (compact: boolean) =>
+    NAV.map(({ view, label, icon: Icon, onClick, locked }) => (
+      <button
+        key={view}
+        onClick={onClick || (() => onNavigate(view))}
+        className={navItem(currentView === view, compact)}
+        aria-current={currentView === view ? 'page' : undefined}
+      >
+        {locked ? <Lock className="w-3.5 h-3.5" /> : <Icon className="w-3.5 h-3.5" />}
+        {label}
+      </button>
+    ));
+
   return (
-    <header className="sticky top-0 z-40 bg-[#FFFDF9] border-b-2 border-[#CCD4CF] px-4 md:px-8 py-2.5 transition-colors shadow-xs">
-      <div className="max-w-7xl mx-auto flex items-center justify-between">
-        {/* Zone 1: Brand Zone with Official Logo */}
+    <header className="sticky top-0 z-40 bg-[#FFFDF9]/95 backdrop-blur-md border-b-2 border-[#E8D5B5] px-3 sm:px-6 md:px-8 py-2.5 transition-all shadow-xs">
+      <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 sm:gap-4">
+        {/* Zone 1: Brand Zone con AMBOS Logos Oficiales (LabSIE y EduTLAN) */}
         <button
           onClick={() => onNavigate('welcome')}
-          className="flex items-center gap-2.5 group cursor-pointer text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#10B981] rounded-lg py-1 px-1 -ml-1 transition-all"
+          className="flex items-center gap-2.5 sm:gap-3.5 group cursor-pointer text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#10B981] rounded-xl py-1 px-1 -ml-1 transition-all shrink-0"
           title="Ir al inicio: Semillero de Investigación LabSIE · Grupo EduTLAN"
-          aria-label="Logotipo oficial Semillero de Investigación LabSIE y Grupo EduTLAN"
+          aria-label="Logotipos oficiales Semillero LabSIE y Grupo EduTLAN"
         >
-          <LabSIELogo size="sm" className="group-hover:scale-[1.02] transition-transform shrink-0" />
-          <div className="flex flex-col border-l-2 border-[#CCD4CF] pl-2.5 leading-tight py-0.5 justify-center">
-            <span className="font-serif font-bold text-xs sm:text-sm text-[#1C2624] tracking-tight">
+          {/* Contenedor de Logos Oficiales */}
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            <LabSIELogo size="sm" className="group-hover:scale-105 transition-transform shrink-0" />
+            <div className="w-px h-8 sm:h-9 bg-[#CCD4CF]" aria-hidden="true" />
+            <EduTLANLogo size="sm" showCategoryBadge={false} className="group-hover:scale-105 transition-transform shrink-0" />
+          </div>
+
+          {/* Wordmark Institucional */}
+          <div className="hidden 2xl:flex flex-col border-l-2 border-[#CCD4CF] pl-3 leading-tight py-0.5 justify-center">
+            <span className="font-serif font-bold text-sm text-[#1C2624] tracking-tight">
               Semillero de Investigación LabSIE
             </span>
-            <span className="text-[10px] sm:text-[11px] font-bold text-[#059669]">
+            <span className="text-[11px] font-bold text-[#059669]">
               Grupo EduTLAN · Licenciatura en Informática
             </span>
           </div>
         </button>
 
-        {/* Zone 2: Clean text navigation links with high contrast */}
-        <nav className="hidden md:flex items-center gap-6 text-sm font-semibold text-[#1C2624]">
-          <button
-            onClick={() => onNavigate('welcome')}
-            className={`cursor-pointer transition-colors hover:text-[#059669] pb-0.5 ${
-              currentView === 'welcome' ? 'text-[#059669] font-bold border-b-2 border-[#10B981]' : 'text-[#1C2624]'
-            }`}
-          >
-            Inicio
-          </button>
-          <button
-            onClick={() => onNavigate('heritage')}
-            className={`cursor-pointer transition-colors hover:text-[#059669] pb-0.5 ${
-              currentView === 'heritage' ? 'text-[#059669] font-bold border-b-2 border-[#10B981]' : 'text-[#1C2624]'
-            }`}
-          >
-            Patrimonio Científico
-          </button>
-          <button
-            onClick={() => {
-              if (!isTestUnlocked && onOpenWelcomeModal) {
-                onOpenWelcomeModal();
-              } else {
-                onNavigate('test');
-              }
-            }}
-            className={`cursor-pointer transition-colors hover:text-[#059669] pb-0.5 flex items-center gap-1.5 ${
-              currentView === 'test' ? 'text-[#059669] font-bold border-b-2 border-[#10B981]' : 'text-[#1C2624]'
-            }`}
-          >
-            {!isTestUnlocked && <Lock className="w-3.5 h-3.5 text-[#B45309]" />}
-            <span>Test Vocacional</span>
-            {isTestUnlocked && (
-              <span className="px-1.5 py-0.2 rounded bg-[#ECFDF5] text-[#059669] border border-[#A7F3D0] text-[10px] font-bold">
-                Activo
-              </span>
-            )}
-          </button>
-
-          {/* Admin Tab: Clearly marked with lock or shield */}
-          <button
-            onClick={handleAdminClick}
-            className={`cursor-pointer transition-colors hover:text-[#059669] pb-0.5 flex items-center gap-1.5 ${
-              currentView === 'admin' ? 'text-[#059669] font-bold border-b-2 border-[#10B981]' : 'text-[#1C2624]'
-            }`}
-          >
-            {isAdmin ? (
-              <ShieldCheck className="w-3.5 h-3.5 text-[#059669]" />
-            ) : (
-              <Lock className="w-3.5 h-3.5 text-[#3F4E4C]" />
-            )}
-            <span>Panel de Coordinación</span>
-          </button>
+        {/* Zone 2: Navegación principal (escritorio) */}
+        <nav aria-label="Secciones" className="hidden xl:flex items-center gap-1 p-1 rounded-full bg-[#FFFDF9] border border-[#E8D5B5]">
+          {renderNav(false)}
         </nav>
 
-        {/* Zone 3: Primary Actions & Role Mode */}
+        {/* Zone 3: Acciones principales (Único botón de Coordinador + Botón de Test) */}
         <div className="flex items-center gap-2 sm:gap-2.5">
-          {onOpenWelcomeModal && (
-            <button
-              onClick={onOpenWelcomeModal}
-              className="cursor-pointer hidden lg:inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border border-[#CCD4CF] bg-[#FAF8F5] text-[#1C2624] hover:bg-[#ECFDF5] hover:border-[#10B981] transition-all shadow-xs"
-              title="Abrir invitación y convocatoria al Semillero LabSIE"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-[#10B981]" />
-              <span>Convocatoria</span>
-            </button>
-          )}
-
-          {/* Separation of Student vs Admin Actions */}
+          {/* Botón único de Acceso / Gestión de Coordinación */}
           {isAdmin ? (
             <div className="flex items-center gap-1.5">
-              <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-md bg-[#ECFDF5] border border-[#A7F3D0] text-[#065F46]">
-                <ShieldCheck className="w-3 h-3 text-[#059669]" />
-                <span>Admin Activo</span>
-              </span>
+              <button
+                onClick={() => onNavigate('admin')}
+                className={`cursor-pointer text-xs font-bold px-3 py-2 rounded-xl border-2 transition-all flex items-center gap-1.5 shadow-xs ${
+                  currentView === 'admin'
+                    ? 'bg-[#10B981] text-white border-[#10B981]'
+                    : 'bg-[#ECFDF5] text-[#065F46] border-[#A7F3D0] hover:bg-[#D1FAE5]'
+                }`}
+                title="Ir al panel de coordinación"
+              >
+                <ShieldCheck className="w-4 h-4 text-[#059669]" />
+                <span className="hidden sm:inline">Panel Coordinador</span>
+                <span className="sm:hidden">Panel</span>
+              </button>
               <button
                 onClick={handleLogoutAdmin}
-                className="cursor-pointer text-xs font-bold px-2.5 py-1.5 rounded-lg border border-red-300 bg-red-50 text-red-700 hover:bg-red-100 transition-colors flex items-center gap-1 shadow-xs"
-                title="Cerrar sesión de administrador y regresar a modo Estudiante"
+                className="cursor-pointer text-xs font-bold p-2 sm:px-2.5 sm:py-2 rounded-xl border border-red-300 bg-red-50 text-red-700 hover:bg-red-100 transition-colors flex items-center gap-1 shadow-xs"
+                title="Cerrar sesión de coordinador"
               >
                 <LogOut className="w-3.5 h-3.5 text-red-600" />
-                <span className="hidden sm:inline">Cerrar Sesión</span>
+                <span className="hidden sm:inline">Salir</span>
               </button>
             </div>
           ) : (
             <button
-              onClick={() => {
-                if (onOpenAdminAuthModal) onOpenAdminAuthModal();
-                else onNavigate('admin');
-              }}
-              className="cursor-pointer text-xs font-bold px-3 py-1.5 rounded-lg border-2 border-[#CCD4CF] bg-[#FFFDF9] text-[#24302F] hover:bg-[#ECFDF5] hover:border-[#10B981] transition-colors whitespace-nowrap shadow-xs flex items-center gap-1.5"
-              title="Acceso exclusivo para docentes y coordinación con clave única"
+              onClick={handleAdminClick}
+              className={`cursor-pointer text-xs font-bold px-3 sm:px-3.5 py-2 rounded-xl border-2 transition-all whitespace-nowrap shadow-xs flex items-center gap-1.5 sm:gap-2 ${
+                currentView === 'admin'
+                  ? 'bg-[#10B981] text-[#FFFDF9] border-[#10B981]'
+                  : 'border-[#CCD4CF] bg-[#FFFDF9] text-[#24302F] hover:bg-[#FAF8F5] hover:border-[#10B981] hover:text-[#059669]'
+              }`}
+              title="Acceso exclusivo para docentes y coordinación de LabSIE"
             >
               <KeyRound className="w-3.5 h-3.5 text-[#059669]" />
               <span className="hidden sm:inline">Acceso Coordinador</span>
-              <span className="sm:hidden">Admin</span>
+              <span className="sm:hidden">Coordinador</span>
             </button>
           )}
 
-          {/* Botón directo de Activar Ruta / Realizar Test */}
+          {/* Botón principal de acción para estudiantes: Activar Ruta / Realizar Test */}
           {currentView !== 'test' && (
             <button
               type="button"
@@ -174,16 +172,16 @@ export const Header: React.FC<HeaderProps> = ({
                   onNavigate('test');
                 }
               }}
-              className={`cursor-pointer text-xs md:text-sm font-bold px-3.5 sm:px-4 py-2 rounded-xl transition-all whitespace-nowrap shadow-sm border-2 flex items-center gap-1.5 ${
+              className={`cursor-pointer text-xs sm:text-sm font-bold px-3.5 sm:px-4 py-2 rounded-xl transition-all whitespace-nowrap shadow-sm border-2 items-center gap-1.5 ${isAdmin ? 'hidden sm:flex' : 'flex'} ${
                 isTestUnlocked
                   ? 'bg-[#10B981] text-[#FFFDF9] hover:bg-[#059669] border-[#10B981]'
-                  : 'bg-[#ECFDF5] text-[#065F46] hover:bg-[#10B981] hover:text-[#FFFDF9] border-[#10B981]'
+                  : 'bg-[#059669] text-[#FFFDF9] hover:bg-[#047857] border-[#059669]'
               }`}
-              title={isTestUnlocked ? 'Ir al Test de Exploración (Ruta Activa)' : 'Abrir invitación y activar ruta'}
+              title={isTestUnlocked ? 'Comenzar Test Vocacional' : 'Abrir invitación al semillero y activar ruta'}
             >
               {!isTestUnlocked ? (
                 <>
-                  <Lock className="w-3.5 h-3.5 text-[#059669]" />
+                  <Sparkles className="w-3.5 h-3.5 text-[#FEF3C7]" />
                   <span>Activar Ruta</span>
                 </>
               ) : (
@@ -196,6 +194,11 @@ export const Header: React.FC<HeaderProps> = ({
           )}
         </div>
       </div>
+
+      {/* Navegación en celulares y tabletas */}
+      <nav aria-label="Navegación principal" className="xl:hidden mt-2 -mx-1 px-1 pb-0.5 flex items-center gap-2 overflow-x-auto [scrollbar-width:none]">
+        {renderNav(true)}
+      </nav>
     </header>
   );
 };

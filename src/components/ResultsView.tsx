@@ -25,7 +25,11 @@ import {
   Star,
   Zap,
   Globe,
-  Code2
+  Code2,
+  Heart,
+  Terminal,
+  UserCheck,
+  ShieldCheck
 } from 'lucide-react';
 import { AnalysisResult, RouteType, AnalysisPerspective, ProposedProjectOption } from '../types';
 import { generatePDFReport, generateDOCXReport } from '../services/documentGenerator';
@@ -267,10 +271,10 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
       <div className="bg-[#FFFDF9] border-2 border-[#CCD4CF] rounded-2xl p-6 md:p-8 shadow-sm space-y-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b-2 border-[#CCD4CF] pb-6">
           <div className="space-y-2">
-            <div className="flex flex-wrap items-center gap-3">
-              <LabSIELogo size="sm" className="shrink-0" />
-              <div className="h-8 w-px bg-[#CCD4CF] hidden sm:block" />
-              <EduTLANLogo size="sm" showCategoryBadge={true} className="shrink-0" />
+            <div className="flex flex-wrap items-center gap-3.5">
+              <LabSIELogo size="md" className="shrink-0" />
+              <div className="h-12 w-px bg-[#CCD4CF] hidden sm:block" />
+              <EduTLANLogo size="md" showCategoryBadge={true} className="shrink-0" />
               <div className="border-l-2 border-[#CCD4CF] pl-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-[11px] font-bold text-[#059669] uppercase tracking-wider block">
@@ -429,6 +433,77 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* REPORTE PERSONAL: carta, dónde puede entrar y qué proyectos puede hacer */}
+      {analysis.qwenAnalysis && (
+        <section
+          aria-labelledby="personal-report-title"
+          className="bg-[#FFFDF9] border-2 border-[#10B981] rounded-2xl p-5 sm:p-8 shadow-sm space-y-6"
+        >
+          <div className="flex items-center gap-3 border-b-2 border-[#CCD4CF] pb-4">
+            <span className="p-2 rounded-xl bg-[#FFF1F2] border border-[#FECDD3] text-[#E11D48] shrink-0">
+              <Heart className="w-5 h-5" />
+            </span>
+            <div>
+              <span className="text-[11px] uppercase tracking-wider text-[#059669] font-bold block">Tu reporte de ruta investigativa</span>
+              <h3 id="personal-report-title" className="font-serif text-xl sm:text-2xl font-bold text-[#1C2624]">
+                Una carta para ti desde LabSIE
+              </h3>
+            </div>
+          </div>
+
+          {(analysis.qwenAnalysis.warmLetter || []).length > 0 && (
+            <div className="space-y-3 text-sm sm:text-base text-[#24302F] leading-relaxed font-serif">
+              {analysis.qwenAnalysis.warmLetter!.map((parr, i) => (
+                <p key={i}>{parr}</p>
+              ))}
+            </div>
+          )}
+
+          {analysis.qwenAnalysis.whereYouCanEnter && (
+            <div className="p-4 rounded-xl bg-[#ECFDF5] border border-[#A7F3D0] space-y-1.5">
+              <h4 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#065F46]">
+                <Compass className="w-4 h-4" /> Dónde puedes entrar
+              </h4>
+              <p className="text-xs sm:text-sm text-[#1C2624] leading-relaxed">{analysis.qwenAnalysis.whereYouCanEnter}</p>
+            </div>
+          )}
+
+          {(analysis.qwenAnalysis.projectsYouCanDo || []).length > 0 && (
+            <div className="space-y-3">
+              <h4 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#059669]">
+                <Layers className="w-4 h-4" /> Proyectos en los que puedes participar
+              </h4>
+              <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {analysis.qwenAnalysis.projectsYouCanDo!.map(p => (
+                  <li key={p.projectCode} className="p-4 rounded-xl border-2 border-[#CCD4CF] bg-[#FAF8F5] space-y-1.5">
+                    <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-[#ECFDF5] text-[#065F46] border border-[#A7F3D0]">
+                      {p.projectCode}
+                    </span>
+                    <p className="text-sm font-bold text-[#1C2624] leading-snug">{p.projectTitle}</p>
+                    <p className="text-xs text-[#3F4E4C] leading-relaxed">{p.whatYouCanDo}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t-2 border-[#CCD4CF]">
+            <p className="text-sm text-[#1C2624] font-serif italic">
+              {analysis.qwenAnalysis.closingNote || 'Te esperamos en el semillero. Más información en edutlan.online.'}
+            </p>
+            <a
+              href="https://edutlan.online"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#059669] text-[#FFFDF9] text-xs font-bold hover:bg-[#047857] transition-colors shrink-0"
+            >
+              <span>Visitar edutlan.online</span>
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          </div>
+        </section>
+      )}
 
       {/* 3. VISTA COMPARATIVA (Si viewMode === 'compare') */}
       {viewMode === 'compare' && (
@@ -624,6 +699,118 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
                   <p key={pIdx}>{parr}</p>
                 ))}
               </div>
+            </div>
+          </div>
+
+          {/* 🤖 ANÁLISIS CIENTÍFICO Y CONTRASTE CON LOS 28 PROYECTOS MEDIANTE QWEN LLM */}
+          <div className="bg-[#FFFDF9] border-2 border-[#059669] rounded-2xl p-6 md:p-8 shadow-sm space-y-6">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-[#CCD4CF] pb-4">
+              <div className="flex items-center gap-2.5">
+                <span className="p-2 rounded-xl bg-[#ECFDF5] text-[#059669] border border-[#A7F3D0]">
+                  <Sparkles className="w-5 h-5 text-[#10B981]" />
+                </span>
+                <div>
+                  <span className="text-[11px] uppercase tracking-wider text-[#059669] font-bold block">
+                    Evaluación de Nuevo Integrante · Qwen LLM
+                  </span>
+                  <h3 className="font-serif text-xl md:text-2xl font-bold text-[#1C2624]">
+                    Contraste Integral con los 28 Proyectos de LabSIE
+                  </h3>
+                </div>
+              </div>
+              <span className="px-3 py-1 rounded-full bg-[#ECFDF5] text-[#059669] border border-[#A7F3D0] text-xs font-bold font-mono">
+                {analysis.qwenAnalysis?.model || 'Qwen 2.5 72B Instruct'}
+              </span>
+            </div>
+
+            {/* Narrativa de contraste generada por Qwen */}
+            <div className="p-4 rounded-xl bg-[#FAF8F5] border border-[#CCD4CF] space-y-2">
+              <h4 className="text-xs font-bold text-[#059669] uppercase tracking-wider">
+                Dictamen Académico de Vinculación
+              </h4>
+              <p className="text-xs md:text-sm text-[#1C2624] leading-relaxed font-serif">
+                {analysis.qwenAnalysis?.contrastingNarrative ||
+                  'Perfil analizado y contrastado con los 28 proyectos de investigación histórica y activa del Grupo EduTLAN.'}
+              </p>
+            </div>
+
+            {/* Cuadrícula de 3 Dimensiones Clave: Gustos, Programación y Dimensión Internacional */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Dimensión 1: Qué le gusta y pasiones */}
+              <div className="p-4 rounded-xl bg-[#FFFDF9] border-2 border-[#CCD4CF] space-y-2.5">
+                <div className="flex items-center gap-2 text-xs font-bold text-[#E11D48]">
+                  <Heart className="w-4 h-4 text-[#E11D48]" />
+                  <span>Áreas de Interés y Pasiones</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {(analysis.studentAnswers.personalPassions || analysis.studentProfile.personalPassions || []).length > 0 ? (
+                    (analysis.studentAnswers.personalPassions || analysis.studentProfile.personalPassions || []).map((p, i) => (
+                      <span key={i} className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-[#FFF1F2] text-[#BE123C] border border-[#FECDD3]">
+                        {p}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-xs text-[#526066]">Informática Educativa y Metodología</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Dimensión 2: Programación y Código */}
+              <div className="p-4 rounded-xl bg-[#FFFDF9] border-2 border-[#CCD4CF] space-y-2.5">
+                <div className="flex items-center gap-2 text-xs font-bold text-[#059669]">
+                  <Code2 className="w-4 h-4 text-[#059669]" />
+                  <span>Afinidad con Programación</span>
+                </div>
+                <p className="text-xs text-[#1C2624] leading-relaxed">
+                  {analysis.qwenAnalysis?.programmingAffinityNote ||
+                    (analysis.studentAnswers.programmingInterestLevel || 'Interés en desarrollo tecnológico y software didáctico.')}
+                </p>
+                {(analysis.studentAnswers.programmingLanguages || []).length > 0 && (
+                  <div className="flex flex-wrap gap-1 pt-1">
+                    {(analysis.studentAnswers.programmingLanguages || []).map((l, i) => (
+                      <span key={i} className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#ECFDF5] text-[#065F46] border border-[#A7F3D0]">
+                        {l}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Dimensión 3: Proyectos de otros países / Dimensión Internacional */}
+              <div className="p-4 rounded-xl bg-[#FFFDF9] border-2 border-[#CCD4CF] space-y-2.5">
+                <div className="flex items-center gap-2 text-xs font-bold text-[#0284C7]">
+                  <Globe className="w-4 h-4 text-[#0284C7]" />
+                  <span>Proyectos Internacionales</span>
+                </div>
+                <p className="text-xs text-[#1C2624] leading-relaxed">
+                  {analysis.qwenAnalysis?.internationalDimensionNote ||
+                    (analysis.studentAnswers.internationalProjectsInterest || 'Orientación hacia colaboración transfronteriza y retos globales.')}
+                </p>
+                {(analysis.studentAnswers.internationalMotivations || []).length > 0 && (
+                  <div className="flex flex-wrap gap-1 pt-1">
+                    {(analysis.studentAnswers.internationalMotivations || []).map((m, i) => (
+                      <span key={i} className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#F0F9FF] text-[#0369A1] border border-[#BAE6FD]">
+                        {m}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Consejo de Integración y Rol Deseado */}
+            <div className="p-4 rounded-xl bg-[#ECFDF5] border border-[#10B981] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-2">
+                <UserCheck className="w-4 h-4 text-[#059669] shrink-0" />
+                <span className="text-[#065F46] font-medium">
+                  <strong>Recomendación Tutorial:</strong> {analysis.qwenAnalysis?.newMemberIntegrationAdvice || 'Vincular a mesas de trabajo y co-diseño con investigadores del semillero.'}
+                </span>
+              </div>
+              {(analysis.studentAnswers.preferredRole || analysis.studentProfile.preferredRole) && (
+                <span className="px-2.5 py-1 rounded-lg bg-[#059669] text-white font-bold shrink-0">
+                  Rol: {analysis.studentAnswers.preferredRole || analysis.studentProfile.preferredRole}
+                </span>
+              )}
             </div>
           </div>
 
@@ -884,6 +1071,59 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
           </button>
         </div>
       </div>
+
+      {/* 7. Antes de irte, lee esto */}
+      <section
+        aria-labelledby="before-you-go-title"
+        className="relative overflow-hidden bg-[#FFFDF9] border-2 border-[#10B981] rounded-2xl p-6 sm:p-10 shadow-sm"
+      >
+        <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-[#10B981] via-[#ffcf3f] to-[#ff5d8f]" aria-hidden="true" />
+        <div className="max-w-2xl mx-auto space-y-5 text-[#24302F]">
+          <div className="text-center space-y-1">
+            <span className="text-[11px] uppercase tracking-wider font-bold text-[#059669]">Antes de irte, lee esto</span>
+            <h3 id="before-you-go-title" className="font-serif text-2xl sm:text-3xl font-bold text-[#1C2624] text-balance">
+              Investigar es aprender a caer, levantarse y volver a intentarlo mejor.
+            </h3>
+          </div>
+          <div className="space-y-4 font-serif text-sm sm:text-base leading-relaxed">
+            <p>
+              Si decides emprender este camino con nosotros, recuerda que la investigación no siempre tendrá respuestas fáciles; habrá
+              preguntas sin resolver, errores, desafíos y momentos en los que sentirás que debes empezar de nuevo. Pero, como escribió
+              Samuel Beckett:
+            </p>
+            <blockquote className="border-l-4 border-[#10B981] pl-4 italic text-[#065F46]">
+              «Lo intentaste. Fracasaste. No importa. Inténtalo de nuevo. Fracasa de nuevo. Fracasa mejor».
+            </blockquote>
+            <p>
+              Porque en la investigación, cada error puede convertirse en aprendizaje, cada pregunta en un descubrimiento y cada
+              dificultad en una oportunidad para crecer.
+            </p>
+            <p>
+              Más que un grupo de investigación, somos una gran familia. Una familia que celebra tus logros, acompaña tus dudas y te
+              extiende la mano cuando sientas que ya no puedes avanzar. Aquí no tienes que saberlo todo ni tener siempre la respuesta;
+              basta con tener la curiosidad de preguntar, el valor de intentarlo y la voluntad de aprender junto a otros.
+            </p>
+            <p>
+              Si caes, te ayudaremos a levantarte. Si te equivocas, aprenderemos contigo. Y si necesitas comenzar de nuevo, allí
+              estaremos para recordarte que no tienes que recorrer este camino a solas.
+            </p>
+            <p className="font-bold text-[#1C2624]">
+              Porque investigar no se trata de no fracasar, sino de aprender a fracasar mejor, crecer juntos y descubrir hasta dónde
+              podemos llegar cuando nadie tiene que caminar solo.
+            </p>
+          </div>
+          <div className="text-center pt-2">
+            <a
+              href="https://edutlan.online"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#059669] text-[#FFFDF9] text-sm font-bold hover:bg-[#047857] transition-colors"
+            >
+              <Heart className="w-4 h-4" /> Más información en edutlan.online
+            </a>
+          </div>
+        </div>
+      </section>
     </div>
   );
 };

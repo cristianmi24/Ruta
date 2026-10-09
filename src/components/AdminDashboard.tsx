@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Users,
   Compass,
@@ -20,7 +20,11 @@ import {
   Save,
   AlertTriangle,
   ShieldCheck,
-  KeyRound
+  KeyRound,
+  Home,
+  LogOut,
+  RefreshCw,
+  Keyboard
 } from 'lucide-react';
 import {
   AnalysisResult,
@@ -30,12 +34,15 @@ import {
   AdminDecision,
   AdminReview
 } from '../types';
-import { storageService, MASTER_ADMIN_KEY } from '../services/storageService';
+import { storageService } from '../services/storageService';
 import { generatePDFReport, generateDOCXReport } from '../services/documentGenerator';
 import { getProjectMethodology } from '../data/projectMetadata';
 import { AdminProjectModal } from './AdminProjectModal';
 import { AdminLineModal } from './AdminLineModal';
 import { LabSIELogo } from './LabSIELogo';
+import { EduTLANLogo } from './EduTLANLogo';
+import { CoordinatorsPanel } from './CoordinatorsPanel';
+import { AnalysisFullDetails } from './AnalysisFullDetails';
 
 interface AdminDashboardProps {
   analyses: AnalysisResult[];
@@ -52,8 +59,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onRefreshData,
   onExitAdmin
 }) => {
-  const [activeTab, setActiveTab] = useState<'panorama' | 'estudiantes' | 'proyectos' | 'lineas'>('panorama');
+  const [activeTab, setActiveTab] = useState<'panorama' | 'estudiantes' | 'proyectos' | 'lineas' | 'coordinadores'>('panorama');
   const [selectedAnalysis, setSelectedAnalysis] = useState<AnalysisResult | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Filters for Students Table
   const [searchStudent, setSearchStudent] = useState('');
@@ -178,14 +187,153 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     return matchesQuery && matchesStatus && matchesRoute;
   });
 
+  const TAB_LABELS: Record<typeof activeTab, string> = {
+    panorama: 'Panorama',
+    estudiantes: 'Estudiantes',
+    proyectos: 'Proyectos',
+    lineas: 'Líneas',
+    coordinadores: 'Coordinadores'
+  };
+
+  const goToTab = (tab: typeof activeTab) => {
+    setActiveTab(tab);
+    setSelectedAnalysis(null);
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await Promise.resolve(onRefreshData());
+    setTimeout(() => setIsRefreshing(false), 600);
+  };
+
+  const handleLogout = async () => {
+    await storageService.logoutAdmin();
+    onExitAdmin?.();
+  };
+
+  // Atajos de teclado: Alt+1..4 pestañas, Alt+N nuevo proyecto, "/" buscar estudiante, Esc volver
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const typing = ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable;
+      if (projectModalOpen || lineModalOpen) return;
+      if (e.altKey && ['1', '2', '3', '4', '5'].includes(e.key)) {
+        e.preventDefault();
+        goToTab((['panorama', 'estudiantes', 'proyectos', 'lineas', 'coordinadores'] as const)[Number(e.key) - 1]);
+      } else if (e.altKey && e.key.toLowerCase() === 'n') {
+        e.preventDefault();
+        goToTab('proyectos');
+        setEditingProject(null);
+        setProjectModalOpen(true);
+      } else if (e.key === '/' && !typing) {
+        e.preventDefault();
+        goToTab('estudiantes');
+        setTimeout(() => searchInputRef.current?.focus(), 50);
+      } else if (e.key === 'Escape' && selectedAnalysis && !typing) {
+        setSelectedAnalysis(null);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
+
+  const shortcutBtn =
+    'cursor-pointer inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border-2 border-[#CCD4CF] bg-[#FFFDF9] text-[#1C2624] text-xs font-bold hover:border-[#10B981] hover:bg-[#ECFDF5] transition-colors whitespace-nowrap shrink-0';
+  const pendingCount = analyses.filter(a => !a.adminReview || a.adminReview.status === 'PENDING').length;
+
   return (
-    <div className="max-w-7xl mx-auto px-4 md:px-8 py-8 md:py-12 space-y-8">
+    <div className="max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-12 space-y-6 md:space-y-8">
+      {/* Migas de pan */}
+      <nav aria-label="Migas de pan" className="bg-[#FFFDF9]/95 border-2 border-[#CCD4CF] rounded-xl px-3 py-2 shadow-xs overflow-x-auto">
+        <ol className="flex items-center gap-1.5 text-xs font-semibold text-[#3F4E4C] whitespace-nowrap">
+          <li>
+            <button onClick={() => onExitAdmin?.()} className="cursor-pointer inline-flex items-center gap-1 hover:text-[#059669]">
+              <Home className="w-3.5 h-3.5" /> Inicio
+            </button>
+          </li>
+          <li aria-hidden="true"><ChevronRight className="w-3.5 h-3.5 text-[#9AA5A1]" /></li>
+          <li>
+            <button onClick={() => goToTab('panorama')} className="cursor-pointer hover:text-[#059669]">Coordinación</button>
+          </li>
+          <li aria-hidden="true"><ChevronRight className="w-3.5 h-3.5 text-[#9AA5A1]" /></li>
+          <li>
+            {selectedAnalysis ? (
+              <button onClick={() => setSelectedAnalysis(null)} className="cursor-pointer hover:text-[#059669]">Estudiantes</button>
+            ) : (
+              <span aria-current="page" className="text-[#059669] font-bold">{TAB_LABELS[activeTab]}</span>
+            )}
+          </li>
+          {selectedAnalysis && (
+            <>
+              <li aria-hidden="true"><ChevronRight className="w-3.5 h-3.5 text-[#9AA5A1]" /></li>
+              <li aria-current="page" className="text-[#059669] font-bold truncate max-w-[50vw]">
+                {selectedAnalysis.studentProfile.name}
+              </li>
+            </>
+          )}
+        </ol>
+      </nav>
+
+      {/* Atajos del perfil coordinador */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-[#FFFDF9]/95 border-2 border-[#CCD4CF] rounded-xl p-3 shadow-xs">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="p-1.5 rounded-lg bg-[#ECFDF5] border border-[#A7F3D0] text-[#059669] shrink-0">
+            <ShieldCheck className="w-4 h-4" />
+          </span>
+          <div className="min-w-0">
+            <span className="block text-[10px] uppercase tracking-wider font-bold text-[#059669]">Sesión de coordinación</span>
+            <span className="block text-xs font-bold text-[#1C2624] truncate">{storageService.getCurrentUser().email}</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 lg:pb-0">
+          <button onClick={() => goToTab('estudiantes')} className={shortcutBtn} title="Alt+2">
+            <Clock className="w-3.5 h-3.5 text-[#B45309]" /> Pendientes ({pendingCount})
+          </button>
+          <button
+            onClick={() => {
+              goToTab('estudiantes');
+              setTimeout(() => searchInputRef.current?.focus(), 50);
+            }}
+            className={shortcutBtn}
+            title="/"
+          >
+            <Search className="w-3.5 h-3.5 text-[#059669]" /> Buscar
+          </button>
+          <button
+            onClick={() => {
+              goToTab('proyectos');
+              setEditingProject(null);
+              setProjectModalOpen(true);
+            }}
+            className={shortcutBtn}
+            title="Alt+N"
+          >
+            <Plus className="w-3.5 h-3.5 text-[#059669]" /> Nuevo proyecto
+          </button>
+          <button onClick={handleRefresh} className={shortcutBtn} title="Recargar desde la base de datos">
+            <RefreshCw className={`w-3.5 h-3.5 text-[#0284C7] ${isRefreshing ? 'animate-spin' : ''}`} /> Sincronizar
+          </button>
+          <button onClick={handleLogout} className={`${shortcutBtn} hover:border-[#B65C5C] hover:bg-[#B65C5C]/10`}>
+            <LogOut className="w-3.5 h-3.5 text-[#B65C5C]" /> Cerrar sesión
+          </button>
+        </div>
+      </div>
+      <p className="hidden md:flex items-center gap-1.5 -mt-3 text-[11px] text-[#3F4E4C]">
+        <Keyboard className="w-3.5 h-3.5" />
+        Atajos: <kbd className="font-mono">Alt+1-5</kbd> pestañas · <kbd className="font-mono">Alt+N</kbd> nuevo proyecto ·{' '}
+        <kbd className="font-mono">/</kbd> buscar · <kbd className="font-mono">Esc</kbd> volver
+      </p>
+
       {/* Admin Top Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#DDE2DE] pb-6">
-        <div className="flex items-center gap-4">
-          <LabSIELogo size="sm" className="shrink-0" />
-          <div className="border-l-2 border-[#CCD4CF] pl-3">
-            <div className="inline-flex items-center gap-2 text-xs font-bold text-[#059669] uppercase tracking-wider">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-2xl bg-[#FFFDF9]/92 backdrop-blur-md border-2 border-[#CCD4CF] shadow-xs p-4 sm:p-5">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 min-w-0">
+          <div className="flex items-center gap-3">
+            <LabSIELogo size="sm" className="shrink-0" />
+            <div className="w-px h-8 bg-[#CCD4CF]" aria-hidden="true" />
+            <EduTLANLogo size="sm" showCategoryBadge={false} className="shrink-0" />
+          </div>
+          <div className="sm:border-l-2 border-[#CCD4CF] sm:pl-3 min-w-0">
+            <div className="flex flex-wrap items-center gap-x-2 text-[11px] sm:text-xs font-bold text-[#059669] uppercase tracking-wider">
               <span>Semillero de Investigación LabSIE</span>
               <span aria-hidden="true">·</span>
               <span>Grupo EduTLAN (Categoría A MinCiencias)</span>
@@ -200,7 +348,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
 
         {/* Tab Navigation with clear contrast */}
-        <div className="flex items-center gap-1.5 p-1.5 bg-[#FFFDF9] border-2 border-[#CCD4CF] rounded-xl self-start md:self-auto overflow-x-auto shadow-xs">
+        <div className="flex items-center gap-1.5 p-1.5 bg-[#FFFDF9] border-2 border-[#CCD4CF] rounded-xl self-stretch md:self-auto overflow-x-auto shadow-xs max-w-full">
           <button
             onClick={() => {
               setActiveTab('panorama');
@@ -253,6 +401,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           >
             Líneas ({lines.length})
           </button>
+          <button
+            onClick={() => goToTab('coordinadores')}
+            className={`cursor-pointer px-4 py-2 text-xs font-bold rounded-lg transition-colors whitespace-nowrap ${
+              activeTab === 'coordinadores' ? 'bg-[#10B981] text-[#FFFDF9] shadow-xs' : 'text-[#24302F] hover:bg-[#ECFDF5]'
+            }`}
+          >
+            Coordinadores
+          </button>
         </div>
       </div>
 
@@ -266,6 +422,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <ArrowLeft className="w-4 h-4" />
             <span>Volver a la lista de estudiantes</span>
           </button>
+
+          {/* Respuestas completas y reporte de Qwen */}
+          <AnalysisFullDetails analysis={selectedAnalysis} projects={projects} />
 
           {/* Student Detailed Dossier */}
           <div className="bg-[#FFFDF9] border border-[#DDE2DE] rounded-2xl p-6 md:p-8 space-y-8">
@@ -348,6 +507,72 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     {selectedAnalysis.dominantResearchWays.join(', ')}
                   </p>
                 </div>
+              </div>
+
+              {/* 02B CARACTERIZACIÓN DE NUEVO INTEGRANTE & CONTRASTE QWEN */}
+              <div className="md:col-span-2 p-5 rounded-xl bg-[#FFFDF9] border-2 border-[#059669] space-y-4 shadow-xs">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#CCD4CF] pb-2.5">
+                  <span className="font-semibold text-[#059669] uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                    <span>🤖</span>
+                    <span>Caracterización de Nuevo Integrante & Análisis Qwen LLM</span>
+                  </span>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#ECFDF5] text-[#065F46] border border-[#A7F3D0] font-bold">
+                    {selectedAnalysis.qwenAnalysis?.model || 'Qwen 2.5 72B Instruct'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 text-xs">
+                  {/* Gustos y Pasiones */}
+                  <div className="p-3 rounded-lg bg-[#FAF8F5] border border-[#CCD4CF] space-y-1">
+                    <span className="font-bold text-[#E11D48] block">❤️ Áreas de Interés y Gustos:</span>
+                    <p className="text-[#24302F]">
+                      {(selectedAnalysis.studentAnswers.personalPassions || selectedAnalysis.studentProfile.personalPassions || []).join(', ') || 'Informática educativa general'}
+                    </p>
+                  </div>
+
+                  {/* Programación */}
+                  <div className="p-3 rounded-lg bg-[#FAF8F5] border border-[#CCD4CF] space-y-1">
+                    <span className="font-bold text-[#059669] block">💻 Programación y Código:</span>
+                    <p className="text-[#24302F]">
+                      {selectedAnalysis.studentAnswers.programmingInterestLevel || selectedAnalysis.studentProfile.programmingInterestLevel || 'Interés general'}
+                    </p>
+                    {(selectedAnalysis.studentAnswers.programmingLanguages || []).length > 0 && (
+                      <p className="text-[11px] text-[#526066]">
+                        Tecnologías: {selectedAnalysis.studentAnswers.programmingLanguages?.join(', ')}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Proyectos Internacionales */}
+                  <div className="p-3 rounded-lg bg-[#FAF8F5] border border-[#CCD4CF] space-y-1">
+                    <span className="font-bold text-[#0284C7] block">🌐 Dimensión Internacional:</span>
+                    <p className="text-[#24302F]">
+                      {selectedAnalysis.studentAnswers.internationalProjectsInterest || selectedAnalysis.studentProfile.internationalProjectsInterest || 'Interés formativo'}
+                    </p>
+                    {(selectedAnalysis.studentAnswers.internationalMotivations || []).length > 0 && (
+                      <p className="text-[11px] text-[#526066]">
+                        Motivaciones: {selectedAnalysis.studentAnswers.internationalMotivations?.join(', ')}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Síntesis de Qwen y Recomendación Tutorial */}
+                {selectedAnalysis.qwenAnalysis && (
+                  <div className="space-y-2 pt-2 border-t border-[#CCD4CF] text-xs">
+                    <div>
+                      <span className="font-bold text-[#1C2624]">Dictamen de contraste con los 28 proyectos:</span>
+                      <p className="text-[#3F4E4C] leading-relaxed mt-0.5">
+                        {selectedAnalysis.qwenAnalysis.contrastingNarrative}
+                      </p>
+                    </div>
+                    {selectedAnalysis.qwenAnalysis.newMemberIntegrationAdvice && (
+                      <div className="p-2.5 rounded-lg bg-[#ECFDF5] border border-[#A7F3D0] text-[#065F46]">
+                        <strong>Consejo para el tutor:</strong> {selectedAnalysis.qwenAnalysis.newMemberIntegrationAdvice}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* 04 IDEA PROPIA Y PREGUNTAS CLAVE */}
@@ -832,6 +1057,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <Search className="w-4 h-4 text-[#059669] absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
+                ref={searchInputRef}
                 placeholder="Buscar estudiante por nombre, correo, programa..."
                 value={searchStudent}
                 onChange={e => setSearchStudent(e.target.value)}
@@ -1033,6 +1259,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       )}
 
       {/* LÍNEAS TAB (CRUD) */}
+      {!selectedAnalysis && activeTab === 'coordinadores' && <CoordinatorsPanel />}
+
       {!selectedAnalysis && activeTab === 'lineas' && (
         <div className="space-y-6">
           <div className="flex items-center justify-between">

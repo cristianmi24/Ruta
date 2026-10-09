@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
@@ -16,7 +16,15 @@ import {
   Bookmark,
   Compass,
   Filter,
-  Lock
+  Lock,
+  Code,
+  Globe,
+  Heart,
+  Cpu,
+  UserCheck,
+  Terminal,
+  Languages,
+  ShieldCheck
 } from 'lucide-react';
 import {
   StudentProfileData,
@@ -28,6 +36,8 @@ import {
 import { runRecommendationEngine } from '../services/recommendationEngine';
 import { researchAnalysisService } from '../services/aiService';
 import { storageService } from '../services/storageService';
+import { hasValidConsent, issueConsentToken, protectProfilePII, TERMS_VERSION } from '../services/dataProtection';
+import { submitAnalysis } from '../services/apiClient';
 import { getProjectMethodology } from '../data/projectMetadata';
 import { LabSIELogo } from './LabSIELogo';
 import { EduTLANLogo } from './EduTLANLogo';
@@ -60,6 +70,28 @@ export const TestView: React.FC<TestViewProps> = ({
   const [analysisStatusText, setAnalysisStatusText] = useState<string>('Mapeando perfil investigativo...');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // Términos y tratamiento de datos: deben aceptarse antes de diligenciar el formulario
+  const [consentChecked, setConsentChecked] = useState<boolean>(false);
+  const [consentAccepted, setConsentAccepted] = useState<boolean | null>(null);
+  const [consentToken, setConsentToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    setConsentAccepted(hasValidConsent());
+  }, []);
+
+  const handleAcceptTerms = async () => {
+    if (!consentChecked) return;
+    setErrorMsg(null);
+    try {
+      const token = await issueConsentToken();
+      setConsentToken(token);
+      setConsentAccepted(true);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch {
+      setErrorMsg('No pudimos registrar tu aceptación. Revisa tu conexión e intenta de nuevo.');
+    }
+  };
+
   // =========================================================================
   // ZERO PRE-SELECTION: All user answers start strictly EMPTY / UNSELECTED
   // =========================================================================
@@ -73,6 +105,15 @@ export const TestView: React.FC<TestViewProps> = ({
   const [researchExperience, setResearchExperience] = useState<string>(''); // No preselected experience
   const [techExperience, setTechExperience] = useState<string>(''); // No preselected tech
   const [aiExperience, setAiExperience] = useState<string>(''); // No preselected AI
+
+  // CARACTERIZACIÓN NUEVOS INTEGRANTES (Gustos, Programación, Dimensión Internacional)
+  const [personalPassions, setPersonalPassions] = useState<string[]>([]);
+  const [programmingInterestLevel, setProgrammingInterestLevel] = useState<string>('');
+  const [programmingLanguages, setProgrammingLanguages] = useState<string[]>([]);
+  const [programmingExperienceSummary, setProgrammingExperienceSummary] = useState<string>('');
+  const [internationalProjectsInterest, setInternationalProjectsInterest] = useState<string>('');
+  const [internationalMotivations, setInternationalMotivations] = useState<string[]>([]);
+  const [preferredRole, setPreferredRole] = useState<string>('');
 
   // SECCIÓN 2 — 🔎 TU CURIOSIDAD (Preguntas 7 y 8)
   const [firstActionOnProblem, setFirstActionOnProblem] = useState<string>(''); // No preselected first action
@@ -105,6 +146,58 @@ export const TestView: React.FC<TestViewProps> = ({
   // SECCIÓN 7 — 🚀 TUS EXPECTATIVAS (Preguntas 22 y 23)
   const [labsieExpectations, setLabsieExpectations] = useState<string[]>([]); // Empty selection
   const [additionalInterests, setAdditionalInterests] = useState<string>('');
+
+  // Opciones para Caracterización de Nuevos Integrantes
+  const PERSONAL_PASSIONS_LIST = [
+    'Inteligencia Artificial y Modelos de Lenguaje (LLMs)',
+    'Programación y Desarrollo de Software (Web / Móvil)',
+    'Analítica del Aprendizaje y Minería de Datos Educativos',
+    'Gamificación, Videojuegos y Entornos Lúdicos',
+    'Metacognición Artificial y Agentes Autónomos',
+    'Didáctica, Pedagogía e Innovación en el Aula',
+    'Preservación Cultural, Lenguas Nativas y Etnografía',
+    'Neurocognición, STEAM y Robótica Educativa',
+    'Inclusión Educativa, Diseño Universal (DUA) y Accesibilidad'
+  ];
+
+  const PROGRAMMING_LEVELS = [
+    'Me apasiona programar: me encanta escribir código, resolver algoritmos y crear software.',
+    'Me gusta la programación: conozco las bases y deseo profundizar y crear aplicaciones reales.',
+    'Tengo conocimientos básicos: me interesa la lógica pero prefiero combinarlo con diseño y pedagogía.',
+    'Prefiero el análisis conceptual y didáctico más que escribir código directamente.'
+  ];
+
+  const PROGRAMMING_LANGUAGES_LIST = [
+    'Python (Machine Learning, IA, Datos)',
+    'JavaScript / TypeScript / React (Desarrollo Web)',
+    'Aplicaciones Móviles (Flutter / React Native)',
+    'Modelos de IA Generativa y APIs (Qwen, DeepSeek, etc.)',
+    'Bases de Datos (SQL, PostgreSQL, Supabase)',
+    'Hardware Educativo (Micro:bit, Arduino, Robótica)',
+    'Programación por Bloques / Scratch'
+  ];
+
+  const INTERNATIONAL_INTEREST_OPTIONS = [
+    '¡Mucho! Me apasiona colaborar con universidades, estudiantes e investigadores de otros países.',
+    'Sí, me interesan iniciativas internacionales como retos COIL e intercambio intercultural.',
+    'Moderadamente: me interesaría si surge la oportunidad durante la investigación.',
+    'Prefiero concentrarme primero en el contexto local y regional de Córdoba.'
+  ];
+
+  const INTERNATIONAL_MOTIVATIONS_LIST = [
+    'Colaborar en retos computacionales conjuntos con estudiantes del exterior (COIL)',
+    'Publicar artículos y participar en congresos y redes internacionales',
+    'Co-diseñar soluciones tecnológicas con impacto transfronterizo o intercultural',
+    'Aprender cómo se investiga y se enseña la informática en el mundo'
+  ];
+
+  const PREFERRED_ROLES_LIST = [
+    'Desarrollador / Creador de Prototipos de Software e IA',
+    'Investigador de Campo y Trabajo en Aula con Comunidades',
+    'Diseñador Didáctico y de Experiencias Tecno-Pedagógicas',
+    'Analista de Datos Educativos y Evaluación Cuantitativa',
+    'Articulador de Proyectos Internacionales y Difusión Científica'
+  ];
 
   // Section 2 Questions data
   const FIRST_ACTIONS = [
@@ -240,6 +333,24 @@ export const TestView: React.FC<TestViewProps> = ({
     );
   };
 
+  const togglePassion = (passion: string) => {
+    setPersonalPassions(prev =>
+      prev.includes(passion) ? prev.filter(x => x !== passion) : [...prev, passion]
+    );
+  };
+
+  const toggleProgrammingLanguage = (lang: string) => {
+    setProgrammingLanguages(prev =>
+      prev.includes(lang) ? prev.filter(x => x !== lang) : [...prev, lang]
+    );
+  };
+
+  const toggleInternationalMotivation = (mot: string) => {
+    setInternationalMotivations(prev =>
+      prev.includes(mot) ? prev.filter(x => x !== mot) : [...prev, mot]
+    );
+  };
+
   // Navigations & Validations
   const handleNext = async () => {
     setErrorMsg(null);
@@ -276,6 +387,22 @@ export const TestView: React.FC<TestViewProps> = ({
       }
       if (!aiExperience) {
         setErrorMsg('Por favor indica qué tanto has utilizado herramientas de IA (Pregunta 8).');
+        return;
+      }
+      if (personalPassions.length === 0) {
+        setErrorMsg('Por favor selecciona al menos una temática o área que te apasione (Pregunta 9).');
+        return;
+      }
+      if (!programmingInterestLevel) {
+        setErrorMsg('Por favor responde cuál es tu relación y gusto con la programación (Pregunta 10).');
+        return;
+      }
+      if (!internationalProjectsInterest) {
+        setErrorMsg('Por favor responde tu interés en proyectos que involucren otros países (Pregunta 12).');
+        return;
+      }
+      if (!preferredRole) {
+        setErrorMsg('Por favor selecciona el rol con el que te gustaría integrarte al semillero (Pregunta 13).');
         return;
       }
     }
@@ -375,12 +502,26 @@ export const TestView: React.FC<TestViewProps> = ({
       wantsToJoinLabSIE: '¡Sí, quiero ser parte del Semillero LabSIE!',
       researchExperience: researchExperience || 'No, es mi primer acercamiento.',
       techExperience: techExperience || 'Intermedio',
-      aiExperience: aiExperience || 'Ocasionalmente'
+      aiExperience: aiExperience || 'Ocasionalmente',
+      personalPassions,
+      programmingInterestLevel,
+      programmingLanguages,
+      programmingExperienceSummary,
+      internationalProjectsInterest,
+      internationalMotivations,
+      preferredRole
     };
 
     const answers: TestAnswers = {
       wantsToJoinLabSIE: '¡Sí, quiero ser parte del Semillero LabSIE!',
       profile: profileData,
+      personalPassions,
+      programmingInterestLevel,
+      programmingLanguages,
+      programmingExperienceSummary,
+      internationalProjectsInterest,
+      internationalMotivations,
+      preferredRole,
       firstActionOnProblem,
       curiosityQuestions,
       preferredActivities,
@@ -412,27 +553,42 @@ export const TestView: React.FC<TestViewProps> = ({
     };
 
     await new Promise(r => setTimeout(r, 600));
-    setAnalysisStatusText('Cruzando afinidades con el patrimonio histórico de LabSIE...');
+    setAnalysisStatusText('Contrastando gustos, programación y proyectos de otros países con los 28 proyectos de LabSIE...');
     await new Promise(r => setTimeout(r, 600));
-    setAnalysisStatusText('Evaluando correspondencias y posibles rutas de investigación...');
+    setAnalysisStatusText('Evaluando correspondencias multicriterio y rutas de investigación...');
 
     const baseResult = runRecommendationEngine(answers, projects, lines);
 
     let finalResult = baseResult;
     try {
-      if (researchAnalysisService.isAIAvailable()) {
-        setAnalysisStatusText('Enriqueciendo narrativa académica institucional...');
-        finalResult = await researchAnalysisService.augmentAnalysisWithAI(baseResult, projects);
-      }
+      setAnalysisStatusText('Generando análisis y contraste científico mediante Qwen LLM...');
+      finalResult = await researchAnalysisService.augmentAnalysisWithAI(baseResult, projects);
     } catch (e) {
       console.warn('AI layer fallback:', e);
     }
 
+    // Registro en la base de datos (el servidor cifra correo y teléfono con su propia clave)
+    const plainResult = finalResult;
+    try {
+      setAnalysisStatusText('Guardando tu caracterización de forma segura...');
+      await submitAnalysis(plainResult);
+    } catch (e) {
+      console.warn('No se pudo registrar el análisis en la base de datos:', e);
+    }
+
+    // Copia local en este navegador con correo y teléfono cifrados (AES-GCM)
+    const protectedProfile = await protectProfilePII(finalResult.studentProfile);
+    finalResult = {
+      ...finalResult,
+      studentProfile: protectedProfile,
+      studentAnswers: { ...finalResult.studentAnswers, profile: protectedProfile },
+      consentToken: consentToken || undefined
+    };
     storageService.saveAnalysis(finalResult);
 
     await new Promise(r => setTimeout(r, 400));
     setIsAnalyzing(false);
-    onTestComplete(finalResult);
+    onTestComplete({ ...plainResult, consentToken: finalResult.consentToken });
   };
 
   // Safe gate: El test solo se activará si el usuario busca ingresar al semillero, mientras decida que no, no dejes que pueda realizar el test
@@ -513,8 +669,86 @@ export const TestView: React.FC<TestViewProps> = ({
     );
   }
 
+  // Paso previo obligatorio (en la página, no flotante): aceptación de términos y tratamiento de datos
+  if (consentAccepted !== true) {
+    return (
+      <div className="max-w-3xl mx-auto px-4 md:px-8 py-8 md:py-12">
+        <section
+          aria-labelledby="terms-title"
+          className="bg-[#FFFDF9]/95 backdrop-blur-sm border-2 border-[#CCD4CF] rounded-2xl p-5 sm:p-8 shadow-sm space-y-5"
+        >
+          <div className="flex items-center gap-3">
+            <span className="p-2.5 rounded-xl bg-[#ECFDF5] border border-[#A7F3D0] text-[#059669] shrink-0">
+              <ShieldCheck className="w-6 h-6" />
+            </span>
+            <div>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#059669] block">Antes de empezar</span>
+              <h2 id="terms-title" className="font-serif text-xl sm:text-2xl font-bold text-[#1C2624]">
+                Términos y tratamiento de tus datos
+              </h2>
+            </div>
+          </div>
+
+          <div className="max-h-72 overflow-y-auto rounded-xl border border-[#CCD4CF] bg-[#FAF8F5] p-4 text-xs sm:text-sm text-[#1C2624] leading-relaxed space-y-3">
+            <p>
+              El <strong>Semillero LabSIE</strong> y el <strong>Grupo EduTLAN</strong> (Universidad de Córdoba) recogen tus datos para
+              caracterizar tu perfil investigativo y recomendarte una ruta y proyectos dentro del semillero, conforme a la Ley 1581 de 2012
+              de protección de datos personales (Habeas Data).
+            </p>
+            <ul className="list-disc pl-5 space-y-1.5">
+              <li><strong>Qué recogemos:</strong> nombre, correo, teléfono, programa, semestre y tus respuestas al test.</li>
+              <li><strong>Para qué:</strong> generar tu reporte de ruta investigativa y que la coordinación del semillero pueda acompañarte.</li>
+              <li><strong>Cómo los protegemos:</strong> tu aceptación queda firmada en un token JWT; tu correo y teléfono se cifran (AES-GCM) antes de guardarse, y solo la coordinación autenticada puede consultar los registros.</li>
+              <li><strong>Análisis con IA:</strong> para redactar tu reporte se envían tus respuestas y tu primer nombre a un modelo de lenguaje (Qwen). Nunca se envían tu correo ni tu teléfono.</li>
+              <li><strong>Tus derechos:</strong> puedes conocer, actualizar, rectificar o pedir la supresión de tus datos a través de edutlan.online.</li>
+            </ul>
+            <p className="text-[11px] text-[#526066]">Versión de los términos: {TERMS_VERSION}</p>
+          </div>
+
+          <label className="flex items-start gap-3 cursor-pointer p-3 rounded-xl border-2 border-[#CCD4CF] bg-[#FFFDF9] hover:border-[#10B981] transition-colors">
+            <input
+              type="checkbox"
+              checked={consentChecked}
+              onChange={e => setConsentChecked(e.target.checked)}
+              className="mt-0.5 w-4 h-4 accent-[#059669] shrink-0"
+            />
+            <span className="text-xs sm:text-sm text-[#1C2624] font-medium">
+              He leído y acepto los términos y autorizo el tratamiento de mis datos personales para este fin.
+            </span>
+          </label>
+
+          {errorMsg && (
+            <p role="alert" className="flex items-center gap-2 text-xs font-bold text-[#B65C5C]">
+              <AlertCircle className="w-4 h-4 shrink-0" /> {errorMsg}
+            </p>
+          )}
+
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-between gap-3">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="cursor-pointer inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-bold text-[#24302F] bg-[#FFFDF9] border-2 border-[#CCD4CF] hover:border-[#10B981] transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Volver al inicio</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleAcceptTerms}
+              disabled={!consentChecked || consentAccepted === null}
+              className="cursor-pointer inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-[#10B981] text-[#FFFDF9] text-sm font-bold hover:bg-[#059669] transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <span>Aceptar y comenzar el test</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        </section>
+      </div>
+    );
+  }
+
   return (
-    <div className="max-w-4xl mx-auto px-4 md:px-8 py-8 md:py-12">
+    <div className="w-full max-w-6xl mx-auto px-3 sm:px-6 md:px-10 py-6 md:py-10">
       {/* =================================================================== */}
       {/* TOP INSTITUTIONAL HEADER & OFFICIAL LOGO */}
       {/* =================================================================== */}
@@ -540,8 +774,8 @@ export const TestView: React.FC<TestViewProps> = ({
       </div>
 
       {/* Progress Bar Header */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between text-xs text-[#1C2624] mb-2 font-bold">
+      <div className="mb-8 p-4 rounded-2xl bg-[#FFFDF9]/92 backdrop-blur-md border-2 border-[#CCD4CF] shadow-xs">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-[#1C2624] mb-2 font-bold">
           <span className="font-bold text-[#1C2624]">Sección {currentSection} de {TOTAL_SECTIONS}</span>
           <span className="font-serif font-bold text-sm text-[#059669]">{sectionTitles[currentSection - 1]}</span>
           <span className="tabular-nums font-bold text-[#1C2624]">{Math.round((currentSection / TOTAL_SECTIONS) * 100)}%</span>
@@ -650,10 +884,14 @@ export const TestView: React.FC<TestViewProps> = ({
                     <input
                       id="q3-phone"
                       type="tel"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      autoComplete="tel-national"
+                      maxLength={10}
                       required
-                      placeholder="Ej: 300 123 4567"
+                      placeholder="Ej: 3001234567"
                       value={phone}
-                      onChange={e => setPhone(e.target.value)}
+                      onChange={e => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
                       className="w-full px-4 py-3 text-sm bg-[#FAF8F5] border-2 border-[#CCD4CF] rounded-xl text-[#1C2624] font-medium placeholder-[#526066] focus:outline-none focus:border-[#10B981] focus:ring-1 focus:ring-[#10B981] shadow-inner"
                     />
                     <p className="text-[11px] text-[#526066]">
@@ -806,6 +1044,249 @@ export const TestView: React.FC<TestViewProps> = ({
                         <span style={{ color: aiExperience === opt ? '#065F46' : '#24302F' }}>{opt}</span>
                       </button>
                     ))}
+                  </div>
+                </div>
+
+                {/* ------------------------------------------------------------------ */}
+                {/* 🎯 CONVOCATORIA DE NUEVOS INTEGRANTES: GUSTOS, CÓDIGO E INTERNACIONAL */}
+                {/* ------------------------------------------------------------------ */}
+                <div className="pt-6 border-t-2 border-[#10B981]/40 space-y-6 bg-[#FAF8F5] p-5 sm:p-7 rounded-2xl border-2 border-[#CCD4CF] shadow-xs">
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#CCD4CF] pb-3">
+                    <span className="px-3 py-1 rounded-full bg-[#ECFDF5] text-[#059669] border border-[#A7F3D0] text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-[#10B981]" />
+                      <span>Convocatoria Nuevos Integrantes · LabSIE & EduTLAN</span>
+                    </span>
+                    <span className="text-[11px] font-bold text-[#059669]">
+                      Contraste activo con los 28 proyectos mediante Qwen
+                    </span>
+                  </div>
+
+                  {/* 9. ¿Qué áreas y temáticas te gustan más? */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <span className="px-2.5 py-0.5 rounded bg-[#ECFDF5] text-[#059669] border border-[#A7F3D0] text-[11px] font-bold">
+                        Pregunta 9
+                      </span>
+                      <label className="text-sm font-bold text-[#1C2624] font-serif block flex items-center gap-2">
+                        <Heart className="w-4 h-4 text-[#E11D48]" />
+                        <span>¿Qué áreas temáticas te apasionan o llaman más tu atención? <span className="text-[#B65C5C]">*</span></span>
+                      </label>
+                    </div>
+                    <p className="text-xs text-[#526066]">
+                      Selecciona una o más áreas que despiertan tu curiosidad (estas se contrastarán con los 28 proyectos de LabSIE):
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                      {PERSONAL_PASSIONS_LIST.map(passion => {
+                        const isSelected = personalPassions.includes(passion);
+                        return (
+                          <button
+                            key={passion}
+                            type="button"
+                            onClick={() => togglePassion(passion)}
+                            className={`cursor-pointer p-3 rounded-xl border text-left text-xs md:text-sm transition-all flex items-start justify-between gap-2 ${
+                              isSelected
+                                ? 'border-2 border-[#10B981] bg-[#ECFDF5] font-bold text-[#065F46] ring-2 ring-[#10B981]/20 shadow-xs'
+                                : 'border border-[#CCD4CF] bg-[#FFFDF9] text-[#24302F] hover:bg-[#FAF8F5]'
+                            }`}
+                          >
+                            <span>{passion}</span>
+                            <span
+                              className={`w-4 h-4 rounded-md border mt-0.5 shrink-0 flex items-center justify-center ${
+                                isSelected ? 'border-[#10B981] bg-[#10B981] text-white' : 'border-[#CCD4CF] bg-white'
+                              }`}
+                            >
+                              {isSelected && <Check className="w-3 h-3 text-white" />}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* 10. Gusto y afinidad por la Programación */}
+                  <div className="space-y-3 pt-4 border-t border-[#CCD4CF]">
+                    <div className="flex items-center gap-2">
+                      <span className="px-2.5 py-0.5 rounded bg-[#ECFDF5] text-[#059669] border border-[#A7F3D0] text-[11px] font-bold">
+                        Pregunta 10
+                      </span>
+                      <label className="text-sm font-bold text-[#1C2624] font-serif block flex items-center gap-2">
+                        <Code className="w-4 h-4 text-[#059669]" />
+                        <span>¿Cuál es tu relación y gusto con la Programación y Desarrollo de Software? <span className="text-[#B65C5C]">*</span></span>
+                      </label>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      {PROGRAMMING_LEVELS.map(level => {
+                        const isSelected = programmingInterestLevel === level;
+                        return (
+                          <button
+                            key={level}
+                            type="button"
+                            onClick={() => setProgrammingInterestLevel(level)}
+                            className={`cursor-pointer p-3.5 rounded-xl border text-left text-xs md:text-sm transition-all flex items-start justify-between gap-2.5 ${
+                              isSelected
+                                ? 'border-2 border-[#10B981] bg-[#ECFDF5] font-bold text-[#065F46] ring-2 ring-[#10B981]/20 shadow-xs'
+                                : 'border border-[#CCD4CF] bg-[#FFFDF9] text-[#24302F] hover:bg-[#FAF8F5]'
+                            }`}
+                          >
+                            <span>{level}</span>
+                            <span
+                              className={`w-4 h-4 rounded-full border-2 mt-0.5 shrink-0 flex items-center justify-center ${
+                                isSelected ? 'border-[#10B981] bg-[#10B981]' : 'border-[#CCD4CF] bg-white'
+                              }`}
+                            >
+                              {isSelected && <span className="w-1.5 h-1.5 bg-white rounded-full" />}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* 11. Lenguajes y tecnologías de interés */}
+                  <div className="space-y-3 pt-4 border-t border-[#CCD4CF]">
+                    <div className="flex items-center gap-2">
+                      <span className="px-2.5 py-0.5 rounded bg-[#ECFDF5] text-[#059669] border border-[#A7F3D0] text-[11px] font-bold">
+                        Pregunta 11
+                      </span>
+                      <label className="text-sm font-bold text-[#1C2624] font-serif block flex items-center gap-2">
+                        <Terminal className="w-4 h-4 text-[#059669]" />
+                        <span>¿Qué lenguajes, tecnologías o herramientas manejas o te gustaría aprender en el semillero?</span>
+                      </label>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {PROGRAMMING_LANGUAGES_LIST.map(lang => {
+                        const isSelected = programmingLanguages.includes(lang);
+                        return (
+                          <button
+                            key={lang}
+                            type="button"
+                            onClick={() => toggleProgrammingLanguage(lang)}
+                            className={`cursor-pointer px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border flex items-center gap-1.5 ${
+                              isSelected
+                                ? 'bg-[#10B981] text-white border-[#10B981] shadow-xs'
+                                : 'bg-[#FFFDF9] text-[#24302F] border-[#CCD4CF] hover:bg-[#F3F4F6]'
+                            }`}
+                          >
+                            <span>{isSelected ? '✓ ' : '+ '}</span>
+                            <span>{lang}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* 12. Proyectos que abarquen otros países / Dimensión Internacional */}
+                  <div className="space-y-3 pt-4 border-t border-[#CCD4CF]">
+                    <div className="flex items-center gap-2">
+                      <span className="px-2.5 py-0.5 rounded bg-[#ECFDF5] text-[#059669] border border-[#A7F3D0] text-[11px] font-bold">
+                        Pregunta 12
+                      </span>
+                      <label className="text-sm font-bold text-[#1C2624] font-serif block flex items-center gap-2">
+                        <Globe className="w-4 h-4 text-[#0284C7]" />
+                        <span>¿Te llama la atención vincularte a proyectos que abarquen otros países o colaboración internacional? <span className="text-[#B65C5C]">*</span></span>
+                      </label>
+                    </div>
+                    <p className="text-xs text-[#526066]">
+                      LabSIE y EduTLAN desarrollan iniciativas COIL, benchmarks internacionales de IA y redes globales.
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      {INTERNATIONAL_INTEREST_OPTIONS.map(opt => {
+                        const isSelected = internationalProjectsInterest === opt;
+                        return (
+                          <button
+                            key={opt}
+                            type="button"
+                            onClick={() => setInternationalProjectsInterest(opt)}
+                            className={`cursor-pointer p-3.5 rounded-xl border text-left text-xs md:text-sm transition-all flex items-start justify-between gap-2.5 ${
+                              isSelected
+                                ? 'border-2 border-[#0284C7] bg-[#F0F9FF] font-bold text-[#0369A1] ring-2 ring-[#0284C7]/20 shadow-xs'
+                                : 'border border-[#CCD4CF] bg-[#FFFDF9] text-[#24302F] hover:bg-[#FAF8F5]'
+                            }`}
+                          >
+                            <span>{opt}</span>
+                            <span
+                              className={`w-4 h-4 rounded-full border-2 mt-0.5 shrink-0 flex items-center justify-center ${
+                                isSelected ? 'border-[#0284C7] bg-[#0284C7]' : 'border-[#CCD4CF] bg-white'
+                              }`}
+                            >
+                              {isSelected && <span className="w-1.5 h-1.5 bg-white rounded-full" />}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Motivaciones internacionales específicas */}
+                    <div className="pt-2">
+                      <span className="text-xs font-bold text-[#526066] block mb-2">
+                        ¿Qué es lo que más te atrae de un proyecto internacional?
+                      </span>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {INTERNATIONAL_MOTIVATIONS_LIST.map(mot => {
+                          const isSelected = internationalMotivations.includes(mot);
+                          return (
+                            <button
+                              key={mot}
+                              type="button"
+                              onClick={() => toggleInternationalMotivation(mot)}
+                              className={`cursor-pointer p-2.5 rounded-xl border text-left text-xs transition-all flex items-center justify-between gap-2 ${
+                                isSelected
+                                  ? 'border-[#0284C7] bg-[#F0F9FF] font-semibold text-[#0369A1]'
+                                  : 'border-[#CCD4CF] bg-white text-[#24302F] hover:bg-[#FAF8F5]'
+                              }`}
+                            >
+                              <span>{mot}</span>
+                              <span
+                                className={`w-3.5 h-3.5 rounded border shrink-0 flex items-center justify-center ${
+                                  isSelected ? 'border-[#0284C7] bg-[#0284C7] text-white' : 'border-[#CCD4CF]'
+                                }`}
+                              >
+                                {isSelected && <Check className="w-2.5 h-2.5 text-white" />}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 13. Rol que te gustaría desempeñar */}
+                  <div className="space-y-3 pt-4 border-t border-[#CCD4CF]">
+                    <div className="flex items-center gap-2">
+                      <span className="px-2.5 py-0.5 rounded bg-[#ECFDF5] text-[#059669] border border-[#A7F3D0] text-[11px] font-bold">
+                        Pregunta 13
+                      </span>
+                      <label className="text-sm font-bold text-[#1C2624] font-serif block flex items-center gap-2">
+                        <UserCheck className="w-4 h-4 text-[#059669]" />
+                        <span>¿En qué rol te gustaría integrarte y aportar al Semillero LabSIE? <span className="text-[#B65C5C]">*</span></span>
+                      </label>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                      {PREFERRED_ROLES_LIST.map(role => {
+                        const isSelected = preferredRole === role;
+                        return (
+                          <button
+                            key={role}
+                            type="button"
+                            onClick={() => setPreferredRole(role)}
+                            className={`cursor-pointer p-3 rounded-xl border text-left text-xs md:text-sm transition-all flex items-start justify-between gap-2 ${
+                              isSelected
+                                ? 'border-2 border-[#10B981] bg-[#ECFDF5] font-bold text-[#065F46] ring-2 ring-[#10B981]/20 shadow-xs'
+                                : 'border border-[#CCD4CF] bg-[#FFFDF9] text-[#24302F] hover:bg-[#FAF8F5]'
+                            }`}
+                          >
+                            <span>{role}</span>
+                            <span
+                              className={`w-4 h-4 rounded-full border-2 mt-0.5 shrink-0 flex items-center justify-center ${
+                                isSelected ? 'border-[#10B981] bg-[#10B981]' : 'border-[#CCD4CF] bg-white'
+                              }`}
+                            >
+                              {isSelected && <span className="w-1.5 h-1.5 bg-white rounded-full" />}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               </div>
