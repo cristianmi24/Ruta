@@ -64,6 +64,7 @@ export interface ResearchProject {
 
 export interface StudentProfileData {
   name: string;
+  documentNumber?: string; // Cédula de Ciudadanía o N de documento
   email: string;
   phone?: string; // Teléfono / WhatsApp institucional del estudiante
   program: 'Licenciatura en Informática';

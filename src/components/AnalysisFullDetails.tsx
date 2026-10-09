@@ -143,15 +143,7 @@ export const AnalysisFullDetails: React.FC<{ analysis: AnalysisResult; projects:
 
   return (
     <div className="space-y-6">
-      {/* Botones de acción superior */}
-      <div className="flex justify-end gap-3">
-        <button
-          onClick={handleDownloadPdf}
-          className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-[#0F5132] text-white rounded-lg font-bold text-sm hover:bg-[#146c43] transition-colors shadow-sm"
-        >
-          <Download className="w-4 h-4" /> Informe Admin PDF
-        </button>
-      </div>
+
 
       {/* Reporte completo de Qwen */}
       {q && (

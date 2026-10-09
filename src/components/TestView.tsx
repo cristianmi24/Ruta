@@ -98,6 +98,7 @@ export const TestView: React.FC<TestViewProps> = ({
 
   // SECCIÓN 1 — 👤 DATOS PERSONALES Y ACADÉMICOS (Preguntas 1 a 8)
   const [name, setName] = useState<string>('');
+  const [documentNumber, setDocumentNumber] = useState<string>('');
   const [email, setEmail] = useState<string>('');
   const [phone, setPhone] = useState<string>('');
   const [program, setProgram] = useState<string>('Licenciatura en Informática'); // Exclusivo Licenciatura en Informática
@@ -495,6 +496,7 @@ export const TestView: React.FC<TestViewProps> = ({
 
     const profileData: StudentProfileData = {
       name: name.trim(),
+      documentNumber: documentNumber.trim(),
       email: email.trim() || `${name.trim().toLowerCase().replace(/\s+/g, '.')}@correo.unicordoba.edu.co`,
       phone: phone.trim(),
       program: (program || 'Licenciatura en Informática') as any,
@@ -825,24 +827,46 @@ export const TestView: React.FC<TestViewProps> = ({
 
               <div className="space-y-6">
                 {/* 1. Nombre completo */}
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className="px-2.5 py-0.5 rounded bg-[#ECFDF5] text-[#059669] border border-[#A7F3D0] text-[11px] font-bold">
-                      Pregunta 1
-                    </span>
-                    <label htmlFor="q1-name" className="text-sm font-bold text-[#1C2624] font-serif" style={{ color: '#1C2624' }}>
-                      Nombre completo <span className="text-[#B65C5C]">*</span>
-                    </label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="px-2.5 py-0.5 rounded bg-[#ECFDF5] text-[#059669] border border-[#A7F3D0] text-[11px] font-bold">
+                        Pregunta 1
+                      </span>
+                      <label htmlFor="q1-name" className="text-sm font-bold text-[#1C2624] font-serif" style={{ color: '#1C2624' }}>
+                        Nombre completo <span className="text-[#B65C5C]">*</span>
+                      </label>
+                    </div>
+                    <input
+                      id="q1-name"
+                      type="text"
+                      required
+                      placeholder="Escribe tu nombre y apellido..."
+                      value={name}
+                      onChange={e => setName(e.target.value)}
+                      className="w-full px-4 py-3 text-sm bg-[#FAF8F5] border-2 border-[#CCD4CF] rounded-xl text-[#1C2624] font-medium placeholder-[#526066] focus:outline-none focus:border-[#10B981] focus:ring-1 focus:ring-[#10B981] shadow-inner"
+                    />
                   </div>
-                  <input
-                    id="q1-name"
-                    type="text"
-                    required
-                    placeholder="Escribe tu nombre y apellido..."
-                    value={name}
-                    onChange={e => setName(e.target.value)}
-                    className="w-full px-4 py-3 text-sm bg-[#FAF8F5] border-2 border-[#CCD4CF] rounded-xl text-[#1C2624] font-medium placeholder-[#526066] focus:outline-none focus:border-[#10B981] focus:ring-1 focus:ring-[#10B981] shadow-inner"
-                  />
+
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="px-2.5 py-0.5 rounded bg-[#ECFDF5] text-[#059669] border border-[#A7F3D0] text-[11px] font-bold">
+                        Pregunta 1.1
+                      </span>
+                      <label htmlFor="q1-doc" className="text-sm font-bold text-[#1C2624] font-serif" style={{ color: '#1C2624' }}>
+                        Cédula de Ciudadanía o TI <span className="text-[#B65C5C]">*</span>
+                      </label>
+                    </div>
+                    <input
+                      id="q1-doc"
+                      type="text"
+                      required
+                      placeholder="Escribe tu número de documento..."
+                      value={documentNumber}
+                      onChange={e => setDocumentNumber(e.target.value.replace(/\D/g, ''))}
+                      className="w-full px-4 py-3 text-sm bg-[#FAF8F5] border-2 border-[#CCD4CF] rounded-xl text-[#1C2624] font-medium placeholder-[#526066] focus:outline-none focus:border-[#10B981] focus:ring-1 focus:ring-[#10B981] shadow-inner"
+                    />
+                  </div>
                 </div>
 
                 {/* 2. Correo institucional y 3. Número de teléfono */}
