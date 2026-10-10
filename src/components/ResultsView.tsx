@@ -216,23 +216,49 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
           idea_divergente: a.divergentProjectIdea || ''
         },
         investigaciones_relacionadas: (activePerspective.relatedProjects || []).map((p: any) => ({
-          codigo: p.code,
-          titulo: p.title,
-          afinidad: 85,
-          porque_se_relaciona: p.description
+          codigo: p.projectCode || p.code,
+          titulo: p.projectTitle || p.title,
+          afinidad: p.affinity ?? 85,
+          porque_se_relaciona: p.connectionReason || p.description
+        })),
+        qwen_analysis: analysis.qwenAnalysis,
+        mensaje_final: CLOSING_MESSAGE,
+        perspectivas: perspectives.map(perspective => ({
+          id: perspective.id,
+          title: perspective.title,
+          badge: perspective.badge,
+          focusArea: perspective.focusArea,
+          archetype: perspective.archetype,
+          routeType: perspective.routeType,
+          correspondenceScore: perspective.correspondenceScore,
+          correspondenceLevel: perspective.correspondenceLevel,
+          primaryLineName: perspective.primaryLineName,
+          methodologyFocus: perspective.methodologyFocus,
+          whyExplanation: perspective.whyExplanation,
+          keyStrengths: perspective.keyStrengths,
+          relatedProjects: perspective.relatedProjects,
+          proposedProject: perspective.proposedProject
         })),
         analisis: {
-          parrafos: [activePerspective.whyExplanation, activePerspective.shortDescription].filter(Boolean),
+          parrafos: [...(activePerspective.whyExplanation || []), activePerspective.shortDescription].filter(Boolean),
           ruta: activePerspective.routeType || 'EXPLORAR',
           descripcion_ruta: activeOption.whyThisOption
         },
+        propuesta_afinada: analysis.proposedProject,
         reporte_personalizado: {
           saludo: `Hola ${p.name?.split(' ')[0] || 'Estudiante'}, revisamos tu perfil`,
           donde_entrar: activeOption.tentativeObjective,
           proyectos_participar: projectOptions.map(po => ({
             projectCode: po.badge,
             projectTitle: po.tentativeTitle,
-            whatYouCanDo: po.whyThisOption
+            whatYouCanDo: po.whyThisOption,
+            question: po.tentativeQuestion,
+            objective: po.tentativeObjective,
+            concepts: po.centralConcepts,
+            population: po.possibleContextPopulation,
+            methodology: po.methodology,
+            contribution: po.possibleContribution,
+            nextSteps: po.nextSteps
           }))
         },
         linea_sugerida: activePerspective.primaryLineName || '',

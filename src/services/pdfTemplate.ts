@@ -53,6 +53,10 @@ export function getPdfHtml(data: any, assetBase = ''): string {
   const concern = data?.inquietud ?? {};
   const analysis = data?.analisis ?? {};
   const personalized = data?.reporte_personalizado ?? {};
+  const qwen = data?.qwen_analysis ?? {};
+  const closingMessage = data?.mensaje_final ?? {};
+  const perspectives = items(data?.perspectivas).filter(Boolean);
+  const refinedProject = data?.propuesta_afinada ?? {};
   const projects = items(data?.investigaciones_relacionadas).filter(hasValue);
   const recommendedProjects = items(personalized.proyectos_participar).filter(hasValue);
   const nextSteps = items(data?.proximos_pasos).filter(hasValue);
@@ -64,6 +68,33 @@ export function getPdfHtml(data: any, assetBase = ''): string {
   const scoreGauge = showScore ? Math.max(0, Math.min(100, score)) : 0;
   const gaugeCircumference = 2 * Math.PI * 34;
   const gaugeOffset = gaugeCircumference * (1 - scoreGauge / 100);
+  const detailText = (label: string, value: unknown): string => hasValue(value)
+    ? `<p class="project-detail"><strong>${escapeHtml(label)}:</strong> ${markdown(value)}</p>`
+    : '';
+  const renderProposalDetails = (proposal: any): string => {
+    if (!proposal) return '';
+    const concepts = items(proposal.centralConcepts ?? proposal.concepts).filter(hasValue);
+    const next = items(proposal.nextSteps).filter(hasValue);
+    const methodology = proposal.methodology ?? {};
+    return [
+      detailText('Pregunta de investigación', proposal.tentativeQuestion ?? proposal.question),
+      detailText('Objetivo', proposal.tentativeObjective ?? proposal.objective),
+      concepts.length ? `<p class="project-detail"><strong>Conceptos centrales:</strong> ${concepts.map(markdown).join(' · ')}</p>` : '',
+      detailText('Contexto y población', proposal.possibleContextPopulation ?? proposal.population),
+      detailText('Metodología', methodology.name),
+      detailText('Descripción metodológica', methodology.description),
+      detailText('Aporte esperado', proposal.possibleContribution ?? proposal.contribution),
+      next.length ? `<div class="project-detail"><strong>Próximos pasos:</strong>${list(next, 'content-list')}</div>` : ''
+    ].join('');
+  };
+  const hasQwenContent = [
+    qwen.contrastingNarrative,
+    qwen.programmingAffinityNote,
+    qwen.internationalDimensionNote,
+    qwen.newMemberIntegrationAdvice,
+    qwen.whereYouCanEnter,
+    qwen.closingNote
+  ].some(hasValue) || items(qwen.warmLetter).some(hasValue) || items(qwen.topMatchingProjects).length > 0 || items(qwen.projectsYouCanDo).length > 0;
   const assetRoot = assetBase ? `${assetBase.replace(/\/+$/, '')}/` : '/';
   const logoUrl = `${assetRoot}api/logo`;
   const edutlanLogoUrl = `${assetRoot}api/logo-edutlan`;
@@ -312,6 +343,16 @@ export function getPdfHtml(data: any, assetBase = ''): string {
     .project-title { min-width: 0; margin: 0; color: var(--blue-deep); font-size: 10pt; font-weight: 700; line-height: 1.35; overflow-wrap: anywhere; }
     .project-code { flex: 0 0 auto; padding: .8mm 2mm; border: 1px solid #d7e7ee; border-radius: 1.5mm; color: var(--blue); background: var(--blue-pale); font-size: 7pt; font-weight: 700; overflow-wrap: anywhere; }
     .project-affinity { margin: 0 0 1.5mm; color: #7a5a28; font-size: 7.5pt; font-weight: 600; }
+    .project-detail { margin: 1.5mm 0; color: var(--ink-soft); font-size: 8.3pt; line-height: 1.5; overflow-wrap: anywhere; }
+    .project-detail strong { color: var(--ink); }
+    .perspective-card { margin: 0 0 4mm; padding: 4mm; border: 1px solid var(--line); border-top: 2px solid var(--green); border-radius: 2.5mm; background: #fff; }
+    .perspective-title { margin: 0 0 1mm; color: var(--blue-deep); font-family: 'Lora', Georgia, serif; font-size: 12pt; font-weight: 700; }
+    .qwen-meta { margin: -2mm 0 3mm; color: var(--muted); font-size: 7pt; }
+    .closing-message { margin: 8mm 0 5mm; padding: 5mm; border: 1px solid #ead8b8; border-left: 3px solid var(--gold); border-radius: 2.5mm; background: #fffaf1; }
+    .closing-message h2 { margin: 0 0 2mm; color: var(--blue-deep); font-family: 'Lora', Georgia, serif; font-size: 15pt; line-height: 1.25; }
+    .closing-message .eyebrow { color: var(--green); }
+    .closing-message blockquote { margin: 3mm 0; padding-left: 3.5mm; border-left: 2px solid var(--gold); color: #7a5a28; font-family: 'Lora', Georgia, serif; font-size: 10pt; font-style: italic; }
+    .closing-message .closing-emphasis { margin: 3mm 0 0; color: var(--blue-deep); font-weight: 700; }
     .route-card { border-left: 3px solid var(--gold); background: #fffdfa; }
     .route-name { margin: 0 0 1.5mm; color: var(--blue-deep); font-family: 'Lora', Georgia, serif; font-size: 13pt; font-weight: 700; overflow-wrap: anywhere; }
     .line-card { margin: 3mm 0; padding: 3mm 4mm; border: 1px solid #ead8b8; border-left: 3px solid var(--gold); border-radius: 2mm; background: #fffaf1; }
@@ -328,6 +369,7 @@ export function getPdfHtml(data: any, assetBase = ''): string {
     @media print {
       body { background: #fff; }
       .report-hero, .score-panel, .tag-list li, .story-card, .route-card, .recommendation-card, .line-card { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+      .report-end { display: none; }
       a { color: inherit; text-decoration: none; }
     }
   </style>
@@ -417,19 +459,72 @@ export function getPdfHtml(data: any, assetBase = ''): string {
 
     ${hasValue(data?.linea_sugerida) ? `<article class="line-card"><span class="story-label">Línea de investigación sugerida</span><p class="line-name">${text(data.linea_sugerida, '')}</p></article>` : ''}
 
+    ${hasQwenContent ? `<section class="report-section">
+      ${sectionHeading('07', 'Análisis completo de Qwen')}
+      ${hasValue(qwen.model) || hasValue(qwen.analysisTimestamp) ? `<p class="qwen-meta">Generado por ${text(qwen.model, 'Qwen')}${hasValue(qwen.analysisTimestamp) ? ` · ${text(new Date(qwen.analysisTimestamp).toLocaleString('es-CO'), '')}` : ''}</p>` : ''}
+      ${items(qwen.warmLetter).filter(hasValue).map((paragraph: unknown) => `<article class="story-card">${prose(paragraph)}</article>`).join('')}
+      ${hasValue(qwen.contrastingNarrative) ? `<article class="story-card"><span class="story-label">Contraste con los proyectos de LabSIE</span>${prose(qwen.contrastingNarrative)}</article>` : ''}
+      ${hasValue(qwen.whereYouCanEnter) ? `<article class="story-card"><span class="story-label">Dónde puedes entrar</span>${prose(qwen.whereYouCanEnter)}</article>` : ''}
+      ${items(qwen.topMatchingProjects).filter(hasValue).length ? `<h3 class="subheading">Proyectos más afines</h3><ul class="content-list">${items(qwen.topMatchingProjects).filter(hasValue).map((project: any) => `<li><strong>${text(project?.projectCode, '')}${hasValue(project?.projectTitle) ? ` · ${text(project.projectTitle, '')}` : ''}</strong>${hasValue(project?.matchRationale) ? `: ${markdown(project.matchRationale)}` : ''}</li>`).join('')}</ul>` : ''}
+      ${hasValue(qwen.programmingAffinityNote) ? `<article class="story-card"><span class="story-label">Afinidad con la programación</span>${prose(qwen.programmingAffinityNote)}</article>` : ''}
+      ${hasValue(qwen.internationalDimensionNote) ? `<article class="story-card"><span class="story-label">Dimensión internacional</span>${prose(qwen.internationalDimensionNote)}</article>` : ''}
+      ${items(qwen.projectsYouCanDo).filter(hasValue).length ? `<h3 class="subheading">Proyectos que puedes realizar</h3><div class="project-list">${items(qwen.projectsYouCanDo).filter(hasValue).map((project: any) => `<article class="project-card"><div class="project-title-row"><h3 class="project-title">${text(project?.projectTitle, 'Proyecto')}</h3>${hasValue(project?.projectCode) ? `<span class="project-code">${text(project.projectCode, '')}</span>` : ''}</div>${prose(project?.whatYouCanDo)}</article>`).join('')}</div>` : ''}
+      ${hasValue(qwen.newMemberIntegrationAdvice) ? `<article class="recommendation-card"><span class="story-label">Recomendación para el tutor</span>${prose(qwen.newMemberIntegrationAdvice)}</article>` : ''}
+      ${hasValue(qwen.closingNote) ? `<article class="story-card"><span class="story-label">Mensaje de cierre</span>${prose(qwen.closingNote)}</article>` : ''}
+    </section>` : ''}
+
+    ${['tentativeTitle', 'tentativeQuestion', 'tentativeObjective', 'possibleContribution'].some(key => hasValue(refinedProject[key])) ? `<section class="report-section">
+      ${sectionHeading('08', 'Propuesta de investigación afinada')}
+      <article class="recommendation-card">
+        ${hasValue(refinedProject.tentativeTitle) ? `<h3 class="project-title">${text(refinedProject.tentativeTitle, '')}</h3>` : ''}
+        ${renderProposalDetails(refinedProject)}
+      </article>
+    </section>` : ''}
+
+    ${perspectives.length ? `<section class="report-section">
+      ${sectionHeading('09', 'Enfoques de investigación generados')}
+      ${perspectives.map((perspective: any, index: number) => `<article class="perspective-card">
+        <h3 class="perspective-title">${text(perspective.title, `Enfoque ${index + 1}`)}</h3>
+        ${hasValue(perspective.badge) ? `<p class="eyebrow">${text(perspective.badge, '')}</p>` : ''}
+        <dl class="contact-grid">
+          ${fact('Área de enfoque', perspective.focusArea)}
+          ${fact('Arquetipo', perspective.archetype)}
+          ${fact('Ruta sugerida', perspective.routeType)}
+          ${hasValue(perspective.correspondenceScore) ? fact('Afinidad', `${text(perspective.correspondenceScore, '')}/100`) : ''}
+          ${fact('Línea de investigación', perspective.primaryLineName)}
+          ${fact('Metodología', perspective.methodologyFocus?.type)}
+        </dl>
+        ${hasValue(perspective.methodologyFocus?.description) ? `<p class="project-detail">${markdown(perspective.methodologyFocus.description)}</p>` : ''}
+        ${items(perspective.whyExplanation).filter(hasValue).map((paragraph: unknown) => `<article class="story-card">${prose(paragraph)}</article>`).join('')}
+        ${items(perspective.keyStrengths).filter(hasValue).length ? `<h4 class="subheading">Fortalezas identificadas</h4>${list(perspective.keyStrengths)}` : ''}
+        ${items(perspective.relatedProjects).filter(hasValue).length ? `<h4 class="subheading">Proyectos relacionados</h4><div class="project-list">${items(perspective.relatedProjects).filter(hasValue).map((project: any) => `<article class="project-card"><div class="project-title-row"><h3 class="project-title">${text(project?.projectTitle, 'Proyecto')}</h3>${hasValue(project?.projectCode) ? `<span class="project-code">${text(project.projectCode, '')}</span>` : ''}</div>${hasValue(project?.affinity) ? `<p class="project-affinity">Afinidad: ${text(project.affinity, '')}%</p>` : ''}${prose(project?.connectionReason)}</article>`).join('')}</div>` : ''}
+        ${perspective.proposedProject ? `<h4 class="subheading">Propuesta de este enfoque</h4>${hasValue(perspective.proposedProject.tentativeTitle) ? `<h3 class="project-title">${text(perspective.proposedProject.tentativeTitle, '')}</h3>` : ''}${renderProposalDetails(perspective.proposedProject)}` : ''}
+      </article>`).join('')}
+    </section>` : ''}
+
     ${(hasValue(personalized.saludo) || hasValue(personalized.donde_entrar) || recommendedProjects.length) ? `<section class="report-section">
-      ${sectionHeading('07', 'Recomendación personalizada')}
+      ${sectionHeading('10', 'Recomendación personalizada')}
       ${hasValue(personalized.saludo) ? `<p class="recommendation-greeting">${text(personalized.saludo, '')}</p>` : ''}
       ${hasValue(personalized.donde_entrar) ? `<article class="recommendation-card"><span class="story-label">Punto de partida</span>${prose(personalized.donde_entrar)}</article>` : ''}
       ${recommendedProjects.length ? `<h3 class="subheading">Proyectos en los que podrías participar</h3><div class="project-list">${recommendedProjects.map((project: any) => `<article class="project-card">
         <div class="project-title-row"><h3 class="project-title">${text(project?.projectTitle, 'Proyecto')}</h3>${hasValue(project?.projectCode) ? `<span class="project-code">${text(project.projectCode, '')}</span>` : ''}</div>
         ${prose(project?.whatYouCanDo)}
+        ${renderProposalDetails(project)}
       </article>`).join('')}</div>` : ''}
     </section>` : ''}
 
     ${nextSteps.length ? `<section class="report-section">
-      ${sectionHeading('08', 'Próximos pasos')}
+      ${sectionHeading('11', 'Próximos pasos')}
       ${list(nextSteps, 'content-list')}
+    </section>` : ''}
+
+    ${[closingMessage.kicker, closingMessage.title, closingMessage.intro, closingMessage.quote, closingMessage.closing].some(hasValue) || items(closingMessage.paragraphs).some(hasValue) ? `<section class="closing-message">
+      ${hasValue(closingMessage.kicker) ? `<p class="eyebrow">${text(closingMessage.kicker, '')}</p>` : ''}
+      ${hasValue(closingMessage.title) ? `<h2>${text(closingMessage.title, '')}</h2>` : ''}
+      ${hasValue(closingMessage.intro) ? prose(closingMessage.intro) : ''}
+      ${hasValue(closingMessage.quote) ? `<blockquote>${markdown(closingMessage.quote)}</blockquote>` : ''}
+      ${items(closingMessage.paragraphs).filter(hasValue).map((paragraph: unknown) => prose(paragraph, 'closing-paragraph')).join('')}
+      ${hasValue(closingMessage.closing) ? `<p class="closing-emphasis">${markdown(closingMessage.closing)}</p>` : ''}
     </section>` : ''}
 
     <footer class="report-end">
