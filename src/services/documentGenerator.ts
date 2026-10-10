@@ -274,11 +274,11 @@ export async function generateDOCXReport(
       spacing: { after: 300 },
       children: [
         new TextRun({
-          text: 'INFORME DE ORIENTACIÓN INVESTIGATIVA',
+          text: 'DOSSIER DE ANÁLISIS ESTUDIANTIL',
           bold: true,
-          font: 'Lora',
-          size: 28,
-          color: '315B55'
+          font: 'Playfair Display',
+          size: 32,
+          color: '0F172A'
         })
       ]
     })
