@@ -32,7 +32,7 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import { AnalysisResult, RouteType, AnalysisPerspective, ProposedProjectOption } from '../types';
-import { generatePDFReport, generateDOCXReport } from '../services/documentGenerator';
+import { generatePDFReport } from '../services/documentGenerator';
 import { CLOSING_MESSAGE } from '../data/closingMessage';
 import { getProjectMethodology } from '../data/projectMetadata';
 import { storageService } from '../services/storageService';
@@ -50,7 +50,7 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
   onExploreHeritage,
   onRetakeTest
 }) => {
-  const [downloadingFormat, setDownloadingFormat] = useState<'pdf' | 'docx' | null>(null);
+  const [downloadingFormat, setDownloadingFormat] = useState<'pdf' | null>(null);
   const [selectedPerspectiveId, setSelectedPerspectiveId] = useState<'tecnologico' | 'pedagogico' | 'social'>(
     analysis.selectedPerspectiveId || 'tecnologico'
   );
@@ -249,39 +249,6 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
     }
   };
 
-  const handleDownloadDOCX = async () => {
-    try {
-      setDownloadingFormat('docx');
-      const customAnalysis: AnalysisResult = {
-        ...analysis,
-        routeType: activePerspective.routeType,
-        correspondenceScore: activePerspective.correspondenceScore,
-        correspondenceLevel: activePerspective.correspondenceLevel,
-        profileArchetype: activePerspective.archetype,
-        primaryLineName: activePerspective.primaryLineName,
-        relatedProjects: activePerspective.relatedProjects,
-        whyExplanation: activePerspective.whyExplanation,
-        proposedProject: {
-          tentativeTitle: activeOption.tentativeTitle,
-          tentativeQuestion: activeOption.tentativeQuestion,
-          tentativeObjective: activeOption.tentativeObjective,
-          centralConcepts: activeOption.centralConcepts,
-          possibleContextPopulation: activeOption.possibleContextPopulation,
-          possibleContribution: activeOption.possibleContribution,
-          nextSteps: activeOption.nextSteps,
-          statusLabel: 'PROPUESTA SELECCIONADA POR EL ESTUDIANTE'
-        },
-        proposedProjectOptions: projectOptions,
-        selectedProjectOptionId: selectedOptionId
-      };
-      await generateDOCXReport(customAnalysis, { includeAdminSection: false });
-    } catch (e) {
-      console.error('Error generating DOCX:', e);
-    } finally {
-      setDownloadingFormat(null);
-    }
-  };
-
   const getRouteBadge = (route: RouteType) => {
     switch (route) {
       case 'HEREDAR':
@@ -361,16 +328,6 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
             >
               <Download className="w-4 h-4 text-[#FFFDF9]" />
               <span>{downloadingFormat === 'pdf' ? 'Generando PDF...' : 'Descargar PDF'}</span>
-            </button>
-
-            <button
-              onClick={handleDownloadDOCX}
-              disabled={downloadingFormat !== null}
-              className="cursor-pointer inline-flex items-center gap-2 px-4 py-2.5 text-xs md:text-sm font-bold rounded-xl border-2 border-[#268E6C] bg-[#FFFDF9] text-[#1C2624] hover:bg-[#F2FAF6] transition-all shadow-sm disabled:opacity-50"
-              title="Descargar reporte editable en Word (DOCX)"
-            >
-              <FileText className="w-4 h-4 text-[#268E6C]" />
-              <span>{downloadingFormat === 'docx' ? 'Generando DOCX...' : 'DOCX Editable'}</span>
             </button>
           </div>
         </div>
