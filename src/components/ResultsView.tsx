@@ -32,7 +32,7 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import { AnalysisResult, RouteType, AnalysisPerspective, ProposedProjectOption } from '../types';
-import { generatePDFReport } from '../services/documentGenerator';
+import { getPdfHtml } from '../services/pdfTemplate';
 import { CLOSING_MESSAGE } from '../data/closingMessage';
 import { getProjectMethodology } from '../data/projectMetadata';
 import { storageService } from '../services/storageService';
@@ -59,6 +59,7 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
     analysis.selectedProjectOptionId || 'opcion-1'
   );
   const [selectedSuccessBanner, setSelectedSuccessBanner] = useState<string | null>(null);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
 
   // Fallback if perspectives aren't pre-generated
   const perspectives: AnalysisPerspective[] = analysis.perspectives || [
@@ -164,10 +165,18 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
     setTimeout(() => setSelectedSuccessBanner(null), 5000);
   };
 
-  const handleDownloadPDF = async () => {
+  const handleDownloadPDF = () => {
+    // Abrir la ventana directamente desde el gesto del usuario para evitar que
+    // el navegador bloquee la impresión tras perderse la activación del clic.
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      setDownloadError('El navegador bloqueó la ventana del informe. Permite las ventanas emergentes e inténtalo de nuevo.');
+      return;
+    }
+
+    setDownloadError(null);
+    setDownloadingFormat('pdf');
     try {
-      setDownloadingFormat('pdf');
-      const { getPdfHtml } = await import('../services/pdfTemplate');
       const p = analysis.studentProfile || {};
       const a = analysis.studentAnswers || {};
       
@@ -189,15 +198,15 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
             subtitulo: 'Perfil detectado por IA',
             descripcion: activePerspective.whyExplanation || 'Perfil técnico'
           },
-          puntaje_global: activePerspective.correspondenceScore || 80,
+          puntaje_global: activePerspective.correspondenceScore ?? 80,
           nivel_correspondencia: activePerspective.correspondenceLevel || 'Alta correspondencia',
           experiencia_previa: p.researchExperience || '',
           formacion_tecnica: p.techExperience || '',
           familiaridad_ia: p.aiExperience || ''
         },
         intereses: {
-          curiosidades: Array.isArray(a.curiosityQuestions) ? a.curiosityQuestions : (a.curiosityQuestions || '').split('\n').filter(Boolean),
-          formas_de_investigar: Array.isArray(a.preferredActivities) ? a.preferredActivities : (a.preferredActivities || '').split(',').filter(Boolean),
+          curiosidades: Array.isArray(a.curiosityQuestions) ? a.curiosityQuestions : String(a.curiosityQuestions || '').split('\n').filter(Boolean),
+          formas_de_investigar: Array.isArray(a.preferredActivities) ? a.preferredActivities : String(a.preferredActivities || '').split(',').filter(Boolean),
           continuidad: a.continuationPreference || ''
         },
         inquietud: {
@@ -230,21 +239,37 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
         proximos_pasos: activeOption.nextSteps || []
       };
 
-      const html = getPdfHtml(data);
-      const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      
-      const printWindow = window.open(url, '_blank');
-      if (printWindow) {
-        printWindow.onload = () => {
-          setTimeout(() => {
-            printWindow.print();
-          }, 500);
-        };
-      }
+      const html = getPdfHtml(data, window.location.origin);
+      printWindow.opener = null;
+      printWindow.document.open();
+      printWindow.document.write(html);
+      printWindow.document.close();
+
+      void (async () => {
+        try {
+          const imagesReady = Array.from(printWindow.document.images).map(image => image.decode().catch(() => undefined));
+          await Promise.all([printWindow.document.fonts?.ready, ...imagesReady]);
+          if (!printWindow.closed) {
+            window.setTimeout(() => {
+              if (!printWindow.closed) {
+                printWindow.focus();
+                printWindow.print();
+              }
+              setDownloadingFormat(null);
+            }, 250);
+          } else {
+            setDownloadingFormat(null);
+          }
+        } catch (error) {
+          console.error('Error preparing PDF print:', error);
+          setDownloadError('No se pudo abrir la vista de impresión. Inténtalo de nuevo.');
+          setDownloadingFormat(null);
+        }
+      })();
     } catch (e) {
       console.error('Error generating PDF:', e);
-    } finally {
+      printWindow.close();
+      setDownloadError('No se pudo preparar el informe PDF. Inténtalo de nuevo.');
       setDownloadingFormat(null);
     }
   };
@@ -324,11 +349,14 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
               onClick={handleDownloadPDF}
               disabled={downloadingFormat !== null}
               className="cursor-pointer inline-flex items-center gap-2 px-4 py-2.5 text-xs md:text-sm font-bold rounded-xl bg-[#268E6C] text-[#FFFDF9] hover:bg-[#1E785B] transition-all shadow-sm border-2 border-[#268E6C] disabled:opacity-50"
-              title="Descargar informe oficial en PDF"
+              title="Abre la impresión del navegador; selecciona Guardar como PDF para descargar el informe."
             >
               <Download className="w-4 h-4 text-[#FFFDF9]" />
-              <span>{downloadingFormat === 'pdf' ? 'Generando PDF...' : 'Descargar PDF'}</span>
+              <span>{downloadingFormat === 'pdf' ? 'Preparando PDF...' : 'Imprimir / Guardar PDF'}</span>
             </button>
+            {downloadError && (
+              <p className="w-full text-xs font-medium text-red-700" role="alert">{downloadError}</p>
+            )}
           </div>
         </div>
 

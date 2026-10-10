@@ -33,15 +33,15 @@ export const AnalysisFullDetails: React.FC<{ analysis: AnalysisResult; projects:
           subtitulo: 'Perfil detectado por IA',
           descripcion: q?.contrastingNarrative || 'Perfil técnico'
         },
-        puntaje_global: analysis.correspondenceScore || 80,
+        puntaje_global: analysis.correspondenceScore ?? 80,
         nivel_correspondencia: (analysis.correspondenceScore || 0) > 75 ? 'Alta correspondencia' : 'Media correspondencia',
         experiencia_previa: p.researchExperience,
         formacion_tecnica: p.techExperience,
         familiaridad_ia: p.aiExperience
       },
       intereses: {
-        curiosidades: Array.isArray(a.curiosityQuestions) ? a.curiosityQuestions : (a.curiosityQuestions || '').split('\n').filter(Boolean),
-        formas_de_investigar: Array.isArray(a.preferredActivities) ? a.preferredActivities : (a.preferredActivities || '').split(',').filter(Boolean),
+        curiosidades: Array.isArray(a.curiosityQuestions) ? a.curiosityQuestions : String(a.curiosityQuestions || '').split('\n').filter(Boolean),
+        formas_de_investigar: Array.isArray(a.preferredActivities) ? a.preferredActivities : String(a.preferredActivities || '').split(',').filter(Boolean),
         continuidad: a.continuationPreference
       },
       inquietud: {
@@ -74,7 +74,7 @@ export const AnalysisFullDetails: React.FC<{ analysis: AnalysisResult; projects:
       ]
     };
 
-    const html = getPdfHtml(data);
+    const html = getPdfHtml(data, window.location.origin);
     const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     
@@ -82,10 +82,12 @@ export const AnalysisFullDetails: React.FC<{ analysis: AnalysisResult; projects:
     const printWindow = window.open(url, '_blank');
     if (printWindow) {
       printWindow.onload = () => {
-        // Pequeño delay para asegurar que los estilos de fuentes se carguen antes de imprimir
-        setTimeout(() => {
-          printWindow.print();
-        }, 500);
+        void (async () => {
+          const imagesReady = Array.from(printWindow.document.images).map(image => image.decode().catch(() => undefined));
+          await Promise.all([printWindow.document.fonts?.ready, ...imagesReady]);
+          if (!printWindow.closed) printWindow.print();
+          window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+        })();
       };
     }
   };

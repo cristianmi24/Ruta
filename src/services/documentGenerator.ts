@@ -56,6 +56,32 @@ async function loadLabsieLogo(): Promise<{ data: string; white: string; ratio: n
   }
 }
 
+/** Logo oficial de EduTLAN para la firma discreta de la última página. */
+async function loadEduTlanLogo(): Promise<{ data: string; ratio: number } | null> {
+  let url = '';
+  try {
+    const blob = await fetch('/api/logo-edutlan').then(r => (r.ok ? r.blob() : Promise.reject(new Error('logo'))));
+    url = URL.createObjectURL(blob);
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = reject;
+      image.src = url;
+    });
+    const width = 600;
+    const height = Math.round((img.naturalHeight / img.naturalWidth) * width);
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    canvas.getContext('2d')!.drawImage(img, 0, 0, width, height);
+    return { data: canvas.toDataURL('image/png'), ratio: height / width };
+  } catch {
+    return null;
+  } finally {
+    if (url) URL.revokeObjectURL(url);
+  }
+}
+
 /** Renderiza la plantilla fuera de pantalla y espera fuentes e imágenes. */
 async function renderTemplate(analysis: AnalysisResult, logo: string | null, logoWhite: string | null, includeAdminSection: boolean) {
   const [{ createElement }, { createRoot }, { ReportTemplate }, { storageService }] = await Promise.all([
@@ -84,7 +110,7 @@ async function renderTemplate(analysis: AnalysisResult, logo: string | null, log
 }
 
 export async function generatePDFReport(analysis: AnalysisResult, options: DocumentOptions = {}): Promise<void> {
-  const logo = await loadLabsieLogo();
+  const [logo, signatureLogo] = await Promise.all([loadLabsieLogo(), loadEduTlanLogo()]);
   const { host, root } = await renderTemplate(analysis, logo?.data || null, logo?.white || null, !!options.includeAdminSection);
 
   try {
@@ -155,7 +181,7 @@ export async function generatePDFReport(analysis: AnalysisResult, options: Docum
       doc.addImage(part.toDataURL('image/jpeg', 0.82), 'JPEG', 0, i ? topMm : 0, pageW, (e - s) * mmPerPx, undefined, 'FAST');
     });
 
-    // Pie de página y marca de agua ("by" + logo de LabSIE) en todas las páginas
+    // Pie recurrente; la firma EduTLAN aparece solamente al final.
     const total = doc.getNumberOfPages();
     const GState = (doc as any).GState;
     for (let i = 1; i <= total; i++) {
@@ -168,19 +194,17 @@ export async function generatePDFReport(analysis: AnalysisResult, options: Docum
       doc.setTextColor(82, 96, 102);
       doc.text('Semillero LabSIE · Grupo EduTLAN · edutlan.online', 14, pageH - 6.5);
       doc.text(`Página ${i} de ${total}`, pageW - 14, pageH - 6.5, { align: 'right' });
-      try {
-        if (GState) doc.setGState(new GState({ opacity: 0.38 }));
-        const lw = 16;
-        const lh = logo ? lw * logo.ratio : 0;
-        const x0 = pageW / 2 - (5 + lw) / 2;
-        const baseY = pageH - 12.5;
-        doc.setFont('helvetica', 'italic');
-        doc.setFontSize(9);
-        doc.setTextColor(28, 38, 36);
-        doc.text('by', x0, baseY - lh / 2 + 1.2);
-        if (logo) doc.addImage(logo.data, 'PNG', x0 + 5, baseY - lh, lw, lh, 'labsie-logo', 'SLOW');
-      } finally {
-        if (GState) doc.setGState(new GState({ opacity: 1 }));
+      if (i === total && signatureLogo) {
+        try {
+          if (GState) doc.setGState(new GState({ opacity: 0.65 }));
+          const width = 24;
+          const height = width * signatureLogo.ratio;
+          const x = (pageW - width) / 2;
+          const y = pageH - 11 - height - 2;
+          doc.addImage(signatureLogo.data, 'PNG', x, y, width, height, 'edutlan-signature', 'SLOW');
+        } finally {
+          if (GState) doc.setGState(new GState({ opacity: 1 }));
+        }
       }
     }
 

@@ -1,6 +1,5 @@
 import { db, decryptPII, handle, HttpError, requireCoordinator } from '../../_lib/server.js';
-import { getPdfHtml } from '../../_lib/pdfTemplate.js';
-import puppeteer from 'puppeteer';
+import { getPdfBuffer } from '../../_lib/pdfTemplate.js';
 
 export const GET = handle(async req => {
   // Solo los coordinadores/administradores pueden descargar el informe
@@ -20,6 +19,11 @@ export const GET = handle(async req => {
   const profile = payload.studentProfile || {};
   const qwen = payload.qwenAnalysis || {};
   const answers = payload.studentAnswers || {};
+  const score = payload.correspondenceScore ?? 80;
+  const toStringArray = (value: unknown, separator: string): string[] => Array.isArray(value)
+    ? value.map(entry => String(entry ?? '').trim()).filter(Boolean)
+    : String(value ?? '').split(separator).map(entry => entry.trim()).filter(Boolean);
+  const relatedProjects = Array.isArray(qwen.projectsYouCanDo) ? qwen.projectsYouCanDo : [];
   
   // Transformar al esquema JSON esperado por la plantilla
   const data = {
@@ -40,15 +44,15 @@ export const GET = handle(async req => {
         subtitulo: 'Perfil detectado por IA',
         descripcion: qwen.contrastingNarrative || 'Perfil técnico con altas capacidades'
       },
-      puntaje_global: payload.correspondenceScore || 80,
-      nivel_correspondencia: payload.correspondenceScore > 75 ? 'Alta correspondencia' : 'Media correspondencia',
+      puntaje_global: score,
+      nivel_correspondencia: score > 75 ? 'Alta correspondencia' : 'Media correspondencia',
       experiencia_previa: profile.researchExperience,
       formacion_tecnica: profile.techExperience,
       familiaridad_ia: profile.aiExperience
     },
     intereses: {
-      curiosidades: (answers.curiosityQuestions || '').split('\n').filter(Boolean),
-      formas_de_investigar: (answers.preferredActivities || '').split(',').filter(Boolean),
+      curiosidades: toStringArray(answers.curiosityQuestions, '\n'),
+      formas_de_investigar: toStringArray(answers.preferredActivities, ','),
       continuidad: answers.continuationPreference
     },
     inquietud: {
@@ -57,7 +61,7 @@ export const GET = handle(async req => {
       meta_6_meses: answers.sixMonthsDiscovery,
       idea_divergente: answers.divergentProjectIdea
     },
-    investigaciones_relacionadas: (qwen.projectsYouCanDo || []).map((p: any) => ({
+    investigaciones_relacionadas: relatedProjects.map((p: any) => ({
       codigo: p.projectCode,
       titulo: p.projectTitle,
       afinidad: 85, // Mocked for template
@@ -71,7 +75,7 @@ export const GET = handle(async req => {
     reporte_personalizado: {
       saludo: `Hola ${profile.name?.split(' ')[0] || ''}, revisamos tu perfil`,
       donde_entrar: qwen.whereYouCanEnter,
-      proyectos_participar: qwen.projectsYouCanDo || []
+      proyectos_participar: relatedProjects
     },
     linea_sugerida: payload.primaryLineName,
     proximos_pasos: [
@@ -81,25 +85,19 @@ export const GET = handle(async req => {
     ]
   };
 
-  const html = getPdfHtml(data);
-
-  // Iniciar Puppeteer para generar el PDF
-  const browser = await puppeteer.launch({ headless: true });
-  const page = await browser.newPage();
-  await page.setContent(html, { waitUntil: 'networkidle0' });
-  
-  // Imprimir a PDF usando las opciones CSS page size
-  const pdfBuffer = await page.pdf({ 
-    format: 'A4', 
-    printBackground: true,
-    margin: { top: '0', right: '0', bottom: '0', left: '0' } // Los márgenes ya están en el CSS @page
-  });
-  await browser.close();
+  const pdfBuffer = await getPdfBuffer(data);
+  const safeName = String(data.usuario.nombre || 'LabSIE')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9_-]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 80) || 'LabSIE';
+  const date = new Date().toISOString().slice(0, 10);
 
   return new Response(pdfBuffer, {
     headers: {
       'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename="Informe_Admin_${data.usuario.nombre?.replace(/\s+/g, '_') || 'LabSIE'}_${new Date().toISOString().split('T')[0]}.pdf"`
+      'Content-Disposition': `attachment; filename="Informe_Admin_${safeName}_${date}.pdf"`
     }
   });
 });
