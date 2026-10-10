@@ -17,6 +17,20 @@ const COLORS = {
   white: [255, 255, 255] as RGB
 };
 
+const LABSIE_LOGO_URL = 'https://pub-1ec8494dfebf4d9d96fdb25fd581ca63.r2.dev/logo%20labsie%20sin%20fondo.png';
+const EDUTLAN_LOGO_URL = 'https://pub-1ec8494dfebf4d9d96fdb25fd581ca63.r2.dev/logo%20edutlan%20sin%20fondo%20(1).png';
+
+async function loadPngDataUrl(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    const bytes = Buffer.from(await response.arrayBuffer()).toString('base64');
+    return `data:image/png;base64,${bytes}`;
+  } catch {
+    return null;
+  }
+}
+
 const hasValue = (value: unknown): boolean => value !== null && value !== undefined && value !== '' && value !== '—';
 const asItems = (value: unknown): any[] => Array.isArray(value) ? value : [];
 const plainText = (value: unknown): string => String(value ?? '')
@@ -27,7 +41,11 @@ const plainText = (value: unknown): string => String(value ?? '')
   .replace(/\r\n?/g, '\n');
 
 /** PDF administrativo vectorial, con texto seleccionable y bloques que fluyen entre páginas. */
-export function getPdfBuffer(data: any): ArrayBuffer {
+export async function getPdfBuffer(data: any): Promise<ArrayBuffer> {
+  const [labsieLogo, edutlanLogo] = await Promise.all([
+    loadPngDataUrl(LABSIE_LOGO_URL),
+    loadPngDataUrl(EDUTLAN_LOGO_URL)
+  ]);
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -185,25 +203,34 @@ export function getPdfBuffer(data: any): ArrayBuffer {
   // Cabecera institucional compacta que fluye según el nombre y los metadatos.
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
-  const titleLines = doc.splitTextToSize(plainText(user.nombre || 'Estudiante'), contentWidth - 16) as string[];
+  const headerTextWidth = contentWidth - 47;
+  const titleLines = doc.splitTextToSize(plainText(user.nombre || 'Estudiante'), headerTextWidth) as string[];
   const metadata = [user.programa, hasValue(user.semestre) ? `Semestre ${user.semestre}` : null, data?.id_evaluacion, data?.fecha]
     .filter(hasValue)
     .map(plainText)
     .join('  ·  ');
-  const metadataLines = doc.splitTextToSize(metadata, contentWidth - 16) as string[];
+  const metadataLines = doc.splitTextToSize(metadata, headerTextWidth) as string[];
   const headerHeight = Math.max(43, 23 + titleLines.length * 7 + metadataLines.length * 4);
   doc.setFillColor(...COLORS.navy);
   doc.roundedRect(margin, y, contentWidth, headerHeight, 3, 3, 'F');
   doc.setFillColor(...COLORS.green);
   doc.roundedRect(margin, y, 2.2, headerHeight, 1, 1, 'F');
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(15);
-  doc.setTextColor(...COLORS.white);
-  doc.text('LabSIE', margin + 7, y + 10);
-  const labsieWidth = doc.getTextWidth('LabSIE');
-  doc.setTextColor(121, 204, 177);
   doc.setFontSize(7.2);
-  doc.text('GRUPO EDUTLAN  ·  UNIVERSIDAD DE CÓRDOBA', margin + 7 + labsieWidth + 3, y + 10);
+  doc.setTextColor(121, 204, 177);
+  doc.text('SEMILLERO DE INVESTIGACIÓN · LABSIE', margin + 7, y + 10);
+  if (labsieLogo) {
+    const logoSize = 24;
+    const logoX = pageWidth - margin - logoSize - 5;
+    const logoY = y + 6;
+    doc.setFillColor(...COLORS.white);
+    doc.roundedRect(logoX - 1.5, logoY - 1.5, logoSize + 3, logoSize + 3, 2, 2, 'F');
+    try {
+      doc.addImage(labsieLogo, 'PNG', logoX, logoY, logoSize, logoSize, 'labsie-cloudflare-logo', 'FAST');
+    } catch {
+      // El informe conserva el diseño vectorial si el proveedor del logo no responde.
+    }
+  }
   doc.setDrawColor(217, 119, 6);
   doc.setLineWidth(0.6);
   doc.line(margin + 7, y + 13.5, margin + 28, y + 13.5);
@@ -219,22 +246,46 @@ export function getPdfBuffer(data: any): ArrayBuffer {
 
   drawSection(1, 'Tu perfil investigador');
   if (hasValue(profile.puntaje_global) && Number.isFinite(score)) {
-    ensureSpace(18);
+    ensureSpace(26);
     doc.setFillColor(...COLORS.greenPale);
     doc.setDrawColor(191, 222, 211);
     doc.setLineWidth(0.3);
-    doc.roundedRect(margin, y - 2, contentWidth, 15, 2, 2, 'FD');
+    doc.roundedRect(margin, y - 2, contentWidth, 23, 2, 2, 'FD');
+    const gaugeX = margin + 12;
+    const gaugeY = y + 9.5;
+    const gaugeRadius = 7.1;
+    const progress = Math.max(0, Math.min(100, score)) / 100;
+    doc.setDrawColor(208, 228, 218);
+    doc.setLineWidth(2.1);
+    doc.circle(gaugeX, gaugeY, gaugeRadius, 'S');
+    if (progress > 0) {
+      const steps = Math.max(1, Math.ceil(progress * 64));
+      const points: [number, number][] = [];
+      let previousX = 0;
+      let previousY = -gaugeRadius;
+      for (let step = 1; step <= steps; step += 1) {
+        const angle = -Math.PI / 2 + progress * 2 * Math.PI * step / steps;
+        const x = gaugeRadius * Math.cos(angle);
+        const yOffset = gaugeRadius * Math.sin(angle);
+        points.push([x - previousX, yOffset - previousY]);
+        previousX = x;
+        previousY = yOffset;
+      }
+      doc.setDrawColor(...COLORS.green);
+      doc.setLineWidth(2.3);
+      doc.lines(points, gaugeX, gaugeY - gaugeRadius, [1, 1], 'S', false);
+    }
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(17);
+    doc.setFontSize(8.2);
     doc.setTextColor(...COLORS.green);
-    doc.text(`${score}%`, margin + 4, y + 7.5);
+    doc.text(`${score}%`, gaugeX, gaugeY + 1, { align: 'center' });
     doc.setFontSize(7);
     doc.setTextColor(...COLORS.muted);
-    doc.text('AFINIDAD CON LABSIE', margin + 26, y + 3.3);
+    doc.text('AFINIDAD CON LABSIE', margin + 25, y + 7);
     doc.setFontSize(9);
     doc.setTextColor(...COLORS.ink);
-    doc.text(plainText(profile.nivel_correspondencia || 'Perfil en exploración'), margin + 26, y + 8.5);
-    y += 17;
+    doc.text(plainText(profile.nivel_correspondencia || 'Perfil en exploración'), margin + 25, y + 12.5);
+    y += 25;
   }
   if (hasValue(archetype.nombre)) {
     drawField('Arquetipo identificado', archetype.nombre);
@@ -306,6 +357,7 @@ export function getPdfBuffer(data: any): ArrayBuffer {
 
   // Encabezados de continuación y pies recurrentes fuera del área de contenido.
   const totalPages = doc.getNumberOfPages();
+  const edutlanLogoSize = edutlanLogo ? doc.getImageProperties(edutlanLogo) : null;
   for (let current = 1; current <= totalPages; current += 1) {
     doc.setPage(current);
     if (current > 1) {
@@ -325,6 +377,17 @@ export function getPdfBuffer(data: any): ArrayBuffer {
     doc.setTextColor(...COLORS.muted);
     doc.text('Semillero LabSIE  ·  Grupo EduTLAN', margin, pageHeight - 7);
     doc.text(`Página ${current} de ${totalPages}`, pageWidth - margin, pageHeight - 7, { align: 'right' });
+    if (current === totalPages && edutlanLogo && edutlanLogoSize) {
+      const GState = (doc as any).GState;
+      try {
+        if (GState) doc.setGState(new GState({ opacity: 0.65 }));
+        const width = 24;
+        const height = width * edutlanLogoSize.height / edutlanLogoSize.width;
+        doc.addImage(edutlanLogo, 'PNG', (pageWidth - width) / 2, pageHeight - 12 - height - 2, width, height, 'edutlan-signature', 'SLOW');
+      } finally {
+        if (GState) doc.setGState(new GState({ opacity: 1 }));
+      }
+    }
   }
 
   return doc.output('arraybuffer') as ArrayBuffer;

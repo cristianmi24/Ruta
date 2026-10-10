@@ -85,7 +85,7 @@ export const GET = handle(async req => {
     ]
   };
 
-  const pdfBuffer = getPdfBuffer(data);
+  const pdfBuffer = await getPdfBuffer(data);
   const safeName = String(data.usuario.nombre || 'LabSIE')
     .normalize('NFKD')
     .replace(/[\u0300-\u036f]/g, '')

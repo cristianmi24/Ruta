@@ -61,8 +61,12 @@ export function getPdfHtml(data: any, assetBase = ''): string {
   const score = Number(profile.puntaje_global);
   const showScore = hasValue(profile.puntaje_global) && Number.isFinite(score);
   const date = text(data?.fecha, '');
+  const scoreGauge = showScore ? Math.max(0, Math.min(100, score)) : 0;
+  const gaugeCircumference = 2 * Math.PI * 34;
+  const gaugeOffset = gaugeCircumference * (1 - scoreGauge / 100);
   const assetRoot = assetBase ? `${assetBase.replace(/\/+$/, '')}/` : '/';
-  const logoUrl = `${assetRoot}logo-labsie-edutlan.svg`;
+  const logoUrl = `${assetRoot}api/logo`;
+  const edutlanLogoUrl = `${assetRoot}api/logo-edutlan`;
   const metadata = [hasValue(user.semestre) ? `Semestre ${user.semestre}` : null, data?.id_evaluacion]
     .filter(hasValue)
     .map(value => escapeHtml(value))
@@ -136,13 +140,13 @@ export function getPdfHtml(data: any, assetBase = ''): string {
     }
     .hero-brand {
       display: flex;
-      min-height: 28mm;
+      min-height: 31mm;
       align-items: center;
       justify-content: center;
       padding-right: 6mm;
       border-right: 1px solid var(--line);
     }
-    .hero-brand img { display: block; width: 38mm; height: 26mm; object-fit: contain; }
+    .hero-brand img { display: block; width: 31mm; height: 31mm; object-fit: contain; }
     .hero-copy { min-width: 0; }
     .eyebrow {
       margin: 0 0 1.5mm;
@@ -167,11 +171,14 @@ export function getPdfHtml(data: any, assetBase = ''): string {
     .hero-meta { margin: 0; color: var(--muted); font-size: 7.6pt; overflow-wrap: anywhere; }
     .meta-separator { padding: 0 1.5mm; color: var(--gold); }
     .report-section { margin: 8mm 0 9mm; }
+    .report-section:last-of-type { margin-bottom: 1mm; }
     .section-heading {
       display: flex;
       align-items: center;
       gap: 3mm;
       margin: 0 0 4mm;
+      break-inside: avoid-page;
+      page-break-inside: avoid;
       break-after: avoid-page;
       page-break-after: avoid;
     }
@@ -212,11 +219,19 @@ export function getPdfHtml(data: any, assetBase = ''): string {
       break-inside: avoid-page;
       page-break-inside: avoid;
     }
-    .score-value {
-      flex: 0 0 auto;
+    .score-gauge { position: relative; flex: 0 0 25mm; width: 25mm; height: 25mm; }
+    .score-gauge svg { display: block; width: 100%; height: 100%; transform: rotate(-90deg); }
+    .score-track, .score-progress { fill: none; stroke-width: 8; }
+    .score-track { stroke: #dcebe5; }
+    .score-progress { stroke: var(--green); stroke-linecap: round; }
+    .score-gauge .score-value {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
       color: var(--green);
       font-family: 'Lora', Georgia, serif;
-      font-size: 22pt;
+      font-size: 15pt;
       font-weight: 700;
       line-height: 1;
     }
@@ -302,13 +317,14 @@ export function getPdfHtml(data: any, assetBase = ''): string {
     .line-card { margin: 3mm 0; padding: 3mm 4mm; border: 1px solid #ead8b8; border-left: 3px solid var(--gold); border-radius: 2mm; background: #fffaf1; }
     .line-card .story-label { color: #8a642b; }
     .line-name { margin: 0; color: var(--blue-deep); font-family: 'Lora', Georgia, serif; font-size: 11pt; font-weight: 700; overflow-wrap: anywhere; }
-    .recommendation-card { border-left: 3px solid var(--green); background: #f8fbf8; }
-    .recommendation-greeting { margin: 0 0 2mm; color: var(--blue-deep); font-family: 'Lora', Georgia, serif; font-size: 11pt; font-weight: 600; }
+    .recommendation-card { border-left: 3px solid var(--green); background: #f8fbf8; break-inside: avoid-page; page-break-inside: avoid; }
+    .recommendation-greeting { margin: 0 0 2mm; color: var(--blue-deep); font-family: 'Lora', Georgia, serif; font-size: 11pt; font-weight: 600; break-after: avoid-page; page-break-after: avoid; }
     .content-list { margin: 1mm 0 0; padding-left: 5mm; color: var(--ink-soft); }
     .content-list li { margin: 0 0 1.8mm; padding-left: 1mm; overflow-wrap: anywhere; orphans: 3; widows: 3; }
     .content-list li::marker { color: var(--green); }
     .empty-state { margin: 0; color: var(--muted); font-size: 8.5pt; font-style: italic; }
-    .report-end { margin-top: 8mm; padding-top: 3mm; border-top: 1px solid var(--line); color: var(--muted); font-size: 7.2pt; text-align: center; }
+    .report-end { margin-top: 3mm; padding-top: 2mm; border-top: 1px solid var(--line); color: var(--muted); font-size: 7.2pt; text-align: center; break-inside: avoid-page; page-break-inside: avoid; }
+    .signature-logo { display: block; width: 24mm; max-height: 15mm; object-fit: contain; margin: 1.5mm auto 0; opacity: .68; }
     @media print {
       body { background: #fff; }
       .report-hero, .score-panel, .tag-list li, .story-card, .route-card, .recommendation-card, .line-card { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
@@ -320,7 +336,7 @@ export function getPdfHtml(data: any, assetBase = ''): string {
   <main>
     <header class="report-hero">
       <div class="hero-brand">
-        <img src="${escapeHtml(logoUrl)}" alt="Logotipo de LabSIE y Grupo EduTLAN">
+        <img src="${escapeHtml(logoUrl)}" alt="Logotipo oficial de LabSIE">
       </div>
       <div class="hero-copy">
         <p class="eyebrow">Dossier de orientación investigativa · ${date}</p>
@@ -333,7 +349,13 @@ export function getPdfHtml(data: any, assetBase = ''): string {
     <section class="report-section">
       ${sectionHeading('01', 'Tu perfil investigador')}
       ${showScore ? `<div class="score-panel">
-        <span class="score-value">${escapeHtml(score)}%</span>
+        <div class="score-gauge" role="img" aria-label="Afinidad con LabSIE: ${escapeHtml(score)} por ciento">
+          <svg viewBox="0 0 80 80" aria-hidden="true" focusable="false">
+            <circle class="score-track" cx="40" cy="40" r="34"></circle>
+            <circle class="score-progress" cx="40" cy="40" r="34" stroke-dasharray="${gaugeCircumference.toFixed(2)}" stroke-dashoffset="${gaugeOffset.toFixed(2)}"></circle>
+          </svg>
+          <span class="score-value">${escapeHtml(score)}%</span>
+        </div>
         <div><p class="score-caption">Afinidad con LabSIE</p><p class="score-level">${text(profile.nivel_correspondencia, 'Perfil en exploración')}</p></div>
       </div>` : ''}
       ${hasValue(archetype.nombre) || hasValue(archetype.descripcion) ? `<article class="archetype-card">
@@ -410,7 +432,10 @@ export function getPdfHtml(data: any, assetBase = ''): string {
       ${list(nextSteps, 'content-list')}
     </section>` : ''}
 
-    <footer class="report-end">Un punto de partida para explorar, preguntar y construir.</footer>
+    <footer class="report-end">
+      Un punto de partida para explorar, preguntar y construir.
+      <img class="signature-logo" src="${escapeHtml(edutlanLogoUrl)}" alt="EduTLAN">
+    </footer>
   </main>
 </body>
 </html>`;
