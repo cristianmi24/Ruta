@@ -35,7 +35,7 @@ import {
   AdminReview
 } from '../types';
 import { storageService } from '../services/storageService';
-import { generatePDFReport, generateDOCXReport } from '../services/documentGenerator';
+import { generatePDFReport } from '../services/documentGenerator';
 import { getProjectMethodology } from '../data/projectMetadata';
 import { AdminProjectModal } from './AdminProjectModal';
 import { AdminLineModal } from './AdminLineModal';

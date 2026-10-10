@@ -295,6 +295,4 @@ export function getPdfHtml(data: any): string {
   </div>
 </body>
 </html>`;
-}</body>
-</html>`;
 }
