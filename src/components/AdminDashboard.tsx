@@ -35,7 +35,7 @@ import {
   AdminReview
 } from '../types';
 import { storageService } from '../services/storageService';
-import { generatePDFReport, generateDOCXReport } from '../services/documentGenerator';
+import { generatePDFReport } from '../services/documentGenerator';
 import { getProjectMethodology } from '../data/projectMetadata';
 import { AdminProjectModal } from './AdminProjectModal';
 import { AdminLineModal } from './AdminLineModal';
@@ -429,23 +429,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </div>
               </div>
 
-              {/* Download Reports with Admin Section */}
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => generatePDFReport(selectedAnalysis, { includeAdminSection: true })}
-                  className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-[#10B981] text-[#FFFDF9] hover:bg-[#059669] transition-colors"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Informe Admin PDF</span>
-                </button>
-                <button
-                  onClick={() => generateDOCXReport(selectedAnalysis, { includeAdminSection: true })}
-                  className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border border-[#DDE2DE] bg-[#F7F3ED] text-[#24302F] hover:bg-[#ECFDF5] transition-colors"
-                >
-                  <FileText className="w-3.5 h-3.5 text-[#059669]" />
-                  <span>Informe Admin DOCX</span>
-                </button>
-              </div>
+
             </div>
 
             {/* 10 Structured Sections as required by the prompt */}
