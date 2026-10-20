@@ -1,6 +1,7 @@
 import { handle, HttpError } from './_lib/server.js';
 
-const LOGO_URL = 'https://pub-1ec8494dfebf4d9d96fdb25fd581ca63.r2.dev/logo%20labsie%20sin%20fondo.png';
+/** Logo oficial de LabSIE (PNG, Cloudflare R2). Se reutiliza en el PDF y en las plantillas de correo. */
+export const LOGO_URL = 'https://pub-1ec8494dfebf4d9d96fdb25fd581ca63.r2.dev/logo%20labsie%20sin%20fondo.png';
 
 /**
  * GET /api/logo — sirve el logo oficial de LabSIE desde el mismo dominio.

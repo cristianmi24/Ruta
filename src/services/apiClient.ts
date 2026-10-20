@@ -110,8 +110,12 @@ export function logoutCoordinator() {
 }
 
 // ---------- Análisis ----------
-export function submitAnalysis(analysis: AnalysisResult) {
-  return request<{ ok: true }>('/api/analyses', { method: 'POST', body: JSON.stringify({ analysis }) }, 'consent');
+export function submitAnalysis(analysis: AnalysisResult, report?: { base64: string; filename: string }) {
+  return request<{ ok: true }>(
+    '/api/analyses',
+    { method: 'POST', body: JSON.stringify({ analysis, reportPdfBase64: report?.base64, reportFilename: report?.filename }) },
+    'consent'
+  );
 }
 
 export async function fetchAnalyses(): Promise<AnalysisResult[]> {

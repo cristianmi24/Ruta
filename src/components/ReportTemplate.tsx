@@ -120,8 +120,8 @@ const css = `
 /* ---------- Ruta ---------- */
 .lr-route { display: grid; grid-template-columns: auto 1fr; gap: 22px; align-items: center; background: linear-gradient(120deg, var(--gold-soft), #fff 75%);
   border: 1px solid var(--gold-line); border-radius: 14px; padding: 20px 22px; margin-top: 14px; }
-.lr-route-tag { font-family: var(--serif); font-size: 30px; font-weight: 700; letter-spacing: .06em; color: var(--gold-ink); line-height: 1.1; }
-.lr-steps-route { display: flex; gap: 5px; margin-top: 8px; }
+.lr-route-tag { font-family: var(--serif); font-size: 30px; font-weight: 700; letter-spacing: .06em; color: var(--gold-ink); line-height: 1.25; }
+.lr-steps-route { display: flex; gap: 6px; margin-top: 14px; }
 .lr-steps-route span { display: inline-flex; align-items: center; line-height: 1.3; font-size: 9.5px; font-weight: 600; padding: 2px 7px; border-radius: 6px; background: #fff; border: 1px solid var(--line); color: var(--muted); }
 .lr-steps-route span.on { background: var(--gold-ink); border-color: var(--gold-ink); color: #fff; }
 

@@ -9,6 +9,8 @@ import {
   requireCoordinator,
   HttpError
 } from './_lib/server.js';
+import { sendBrandedMail } from './_lib/brandedMail.js';
+import { studentSubmissionEmailHtml, coordinatorDecisionEmailHtml } from './_lib/emailTemplates.js';
 
 type AnyAnalysis = Record<string, any>;
 
@@ -25,7 +27,11 @@ function stripPII(analysis: AnyAnalysis): AnyAnalysis {
 /** POST /api/analyses — el estudiante registra su test (requiere JWT de consentimiento). */
 export const POST = handle(async req => {
   const consent = requireConsent(req);
-  const { analysis } = await readJson<{ analysis?: AnyAnalysis }>(req);
+  const { analysis, reportPdfBase64, reportFilename } = await readJson<{
+    analysis?: AnyAnalysis;
+    reportPdfBase64?: string;
+    reportFilename?: string;
+  }>(req, 8_000_000);
   if (!analysis || typeof analysis.id !== 'string' || !analysis.studentProfile) {
     throw new HttpError(400, 'Análisis inválido.');
   }
@@ -41,6 +47,28 @@ export const POST = handle(async req => {
             ${Number(analysis.correspondenceScore) || 0}, ${String(analysis.primaryLineName || '')}, ${JSON.stringify(payload)}::jsonb)
     ON CONFLICT (id) DO UPDATE SET payload = EXCLUDED.payload, updated_at = NOW()
     WHERE analyses.consent_sub = EXCLUDED.consent_sub`;
+
+  // El correo de confirmación (con el PDF adjunto) no debe tumbar el registro del test si falla.
+  if (p.email) {
+    try {
+      await sendBrandedMail({
+        to: p.email,
+        toName: p.name,
+        subject: 'Recibimos tu Ruta Investigativa · Semillero LabSIE',
+        html: studentSubmissionEmailHtml({
+          studentName: p.name,
+          routeType: analysis.routeType,
+          primaryLineName: analysis.primaryLineName
+        }),
+        attachments: reportPdfBase64
+          ? [{ filename: reportFilename || 'Informe_LabSIE.pdf', contentType: 'application/pdf', base64: reportPdfBase64 }]
+          : undefined
+      });
+    } catch (err) {
+      console.error('[analyses] no se pudo enviar el correo de confirmación:', err);
+    }
+  }
+
   return json({ ok: true }, 201);
 });
 
@@ -60,14 +88,49 @@ export const GET = handle(async req => {
   return json({ analyses });
 });
 
+interface AdminReviewPayload {
+  status?: string;
+  decision?: string;
+  assignedTutor?: string;
+  adminComments?: string;
+}
+
 /** PATCH /api/analyses — la coordinación guarda su revisión de un estudiante. */
 export const PATCH = handle(async req => {
   requireCoordinator(req);
-  const { id, adminReview } = await readJson<{ id?: string; adminReview?: unknown }>(req, 20_000);
+  const { id, adminReview } = await readJson<{ id?: string; adminReview?: AdminReviewPayload }>(req, 20_000);
   if (!id || !adminReview) throw new HttpError(400, 'Faltan datos de la revisión.');
   const updated = (await db()`
     UPDATE analyses SET payload = jsonb_set(payload, '{adminReview}', ${JSON.stringify(adminReview)}::jsonb), updated_at = NOW()
-    WHERE id = ${id} RETURNING id`) as unknown[];
+    WHERE id = ${id} RETURNING id, student_name, email_enc, primary_line_name`) as {
+    id: string;
+    student_name: string;
+    email_enc: string | null;
+    primary_line_name: string | null;
+  }[];
   if (!updated.length) throw new HttpError(404, 'No se encontró el análisis.');
+
+  // Avisar al estudiante de la respuesta de la coordinación; si el correo falla, la revisión ya quedó guardada.
+  const email = decryptPII(updated[0].email_enc);
+  if (email) {
+    try {
+      await sendBrandedMail({
+        to: email,
+        toName: updated[0].student_name,
+        subject: 'La coordinación de LabSIE respondió tu Ruta Investigativa',
+        html: coordinatorDecisionEmailHtml({
+          studentName: updated[0].student_name,
+          status: adminReview.status,
+          decision: adminReview.decision,
+          assignedTutor: adminReview.assignedTutor,
+          adminComments: adminReview.adminComments,
+          lineName: updated[0].primary_line_name || undefined
+        })
+      });
+    } catch (err) {
+      console.error('[analyses] no se pudo enviar el correo de revisión:', err);
+    }
+  }
+
   return json({ ok: true });
 });

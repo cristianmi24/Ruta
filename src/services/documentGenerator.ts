@@ -83,7 +83,8 @@ async function renderTemplate(analysis: AnalysisResult, logo: string | null, log
   return { host, root };
 }
 
-export async function generatePDFReport(analysis: AnalysisResult, options: DocumentOptions = {}): Promise<void> {
+/** Construye el PDF (jsPDF) de la plantilla "Informe de orientación investigativa" sin guardarlo todavía. */
+async function buildReportDoc(analysis: AnalysisResult, options: DocumentOptions = {}): Promise<jsPDF> {
   const logo = await loadLabsieLogo();
   const { host, root } = await renderTemplate(analysis, logo?.data || null, logo?.white || null, !!options.includeAdminSection);
 
@@ -120,10 +121,20 @@ export async function generatePDFReport(analysis: AnalysisResult, options: Docum
     const allowed = (v: number) => !heads.some(([t, b]) => v > t + 2 && v < b);
     const candidates = [...marks].filter(v => v > 0 && allowed(v)).sort((x, y) => x - y);
     // Puntos de corte finos (entre párrafos) para bloques más altos que una página
-    const fine = Array.from(el.querySelectorAll('p, li, blockquote, h3, h4, .lr-label'))
-      .map(node => Math.round((node as HTMLElement).getBoundingClientRect().bottom - base) + 3)
-      .filter(allowed)
-      .sort((x, y) => x - y);
+    const textNodes = Array.from(el.querySelectorAll('p, li, blockquote, h3, h4, .lr-label')).map(node => {
+      const r = (node as HTMLElement).getBoundingClientRect();
+      return [Math.round(r.top - base), Math.round(r.bottom - base)] as [number, number];
+    });
+    const fine = textNodes.map(([, b]) => b + 3).filter(allowed).sort((x, y) => x - y);
+    // Cabeceras con color de fondo (tarjeta de propuesta, tarjetas de proyecto): nunca cortar dentro
+    // de su relleno, aunque el texto en sí quepa, o queda una franja de color colgando en la página siguiente.
+    const noCrossZones = [
+      ...textNodes,
+      ...Array.from(el.querySelectorAll('.lr-proposal-head, .lr-projhead')).map(node => {
+        const r = (node as HTMLElement).getBoundingClientRect();
+        return [Math.round(r.top - base), Math.round(r.bottom - base)] as [number, number];
+      })
+    ];
 
     const slices: [number, number][] = [];
     let start = 0;
@@ -136,7 +147,18 @@ export async function generatePDFReport(analysis: AnalysisResult, options: Docum
       }
       const fit = candidates.filter(v => v > start + capacity * 0.35 && v <= limit);
       const fineFit = fine.filter(v => v > start + capacity * 0.5 && v <= limit);
-      const end = fit.length ? fit[fit.length - 1] : fineFit.length ? fineFit[fineFit.length - 1] : Math.floor(limit);
+      const bestBreak = fit.length ? fit[fit.length - 1] : null;
+      const bestFine = fineFit.length ? fineFit[fineFit.length - 1] : null;
+      // Preferir el borde de una tarjeta (no partirla), pero solo si ya aprovecha casi toda la página;
+      // si un corte por párrafo/ítem llega más abajo, úsalo para no dejar media página en blanco.
+      let end =
+        bestBreak !== null && (bestFine === null || bestBreak >= start + capacity * 0.82 || bestBreak >= bestFine)
+          ? bestBreak
+          : bestFine ?? bestBreak ?? Math.floor(limit);
+      // Red de seguridad: si el corte cae en medio de un párrafo/título o de una cabecera con color
+      // de fondo, retrocede a su borde superior para no partir texto ni dejar una franja de color colgando.
+      const crossing = noCrossZones.find(([t, b]) => end > t + 1 && end < b - 1);
+      if (crossing) end = Math.max(start + 1, crossing[0] - 4);
       slices.push([start, end]);
       start = end;
     }
@@ -184,12 +206,32 @@ export async function generatePDFReport(analysis: AnalysisResult, options: Docum
       }
     }
 
-    const safeName = analysis.studentProfile.name.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
-    doc.save(`LabSIE_Informe_${safeName}_${analysis.id.slice(-6)}.pdf`);
+    return doc;
   } finally {
     root.unmount();
     host.remove();
   }
+}
+
+/** Nombre de archivo consistente para el informe en PDF de un análisis. */
+function reportFilename(analysis: AnalysisResult): string {
+  const safeName = analysis.studentProfile.name.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+  return `LabSIE_Informe_${safeName}_${analysis.id.slice(-6)}.pdf`;
+}
+
+export async function generatePDFReport(analysis: AnalysisResult, options: DocumentOptions = {}): Promise<void> {
+  const doc = await buildReportDoc(analysis, options);
+  doc.save(reportFilename(analysis));
+}
+
+/** Genera el mismo PDF pero en base64 (sin descargarlo), para enviarlo por correo como adjunto. */
+export async function generatePDFReportBase64(
+  analysis: AnalysisResult,
+  options: DocumentOptions = {}
+): Promise<{ base64: string; filename: string }> {
+  const doc = await buildReportDoc(analysis, options);
+  const dataUri = doc.output('datauristring') as string;
+  return { base64: dataUri.split(',')[1] || '', filename: reportFilename(analysis) };
 }
 
 export async function generateDOCXReport(

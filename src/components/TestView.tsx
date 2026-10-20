@@ -38,6 +38,7 @@ import { researchAnalysisService } from '../services/aiService';
 import { storageService } from '../services/storageService';
 import { hasValidConsent, issueConsentToken, protectProfilePII, TERMS_VERSION } from '../services/dataProtection';
 import { submitAnalysis } from '../services/apiClient';
+import { generatePDFReportBase64 } from '../services/documentGenerator';
 import { getProjectMethodology } from '../data/projectMetadata';
 import { LabSIELogo } from './LabSIELogo';
 import { EduTLANLogo } from './EduTLANLogo';
@@ -572,8 +573,13 @@ export const TestView: React.FC<TestViewProps> = ({
     // Registro en la base de datos (el servidor cifra correo y teléfono con su propia clave)
     const plainResult = finalResult;
     try {
-      setAnalysisStatusText('Guardando tu caracterización de forma segura...');
-      await submitAnalysis(plainResult);
+      setAnalysisStatusText('Generando tu informe en PDF...');
+      const report = await generatePDFReportBase64(plainResult).catch(e => {
+        console.warn('No se pudo generar el PDF para el correo de confirmación:', e);
+        return undefined;
+      });
+      setAnalysisStatusText('Guardando tu caracterización y enviándote el informe por correo...');
+      await submitAnalysis(plainResult, report);
     } catch (e) {
       console.warn('No se pudo registrar el análisis en la base de datos:', e);
     }

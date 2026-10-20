@@ -167,81 +167,29 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
   const handleDownloadPDF = async () => {
     try {
       setDownloadingFormat('pdf');
-      const { getPdfHtml } = await import('../services/pdfTemplate');
-      const p = analysis.studentProfile || {};
-      const a = analysis.studentAnswers || {};
-      
-      const data = {
-        id_evaluacion: analysis.id,
-        fecha: new Date().toLocaleDateString('es-ES'),
-        usuario: {
-          nombre: p.name || 'Estudiante',
-          programa: p.program || '',
-          semestre: p.semester || '',
-          correo: p.email || '',
-          telefono: p.phone || '',
-          vinculacion: 'Estudiante'
+      const customAnalysis: AnalysisResult = {
+        ...analysis,
+        routeType: activePerspective.routeType,
+        correspondenceScore: activePerspective.correspondenceScore,
+        correspondenceLevel: activePerspective.correspondenceLevel,
+        profileArchetype: activePerspective.archetype,
+        primaryLineName: activePerspective.primaryLineName,
+        relatedProjects: activePerspective.relatedProjects,
+        whyExplanation: activePerspective.whyExplanation,
+        proposedProject: {
+          tentativeTitle: activeOption.tentativeTitle,
+          tentativeQuestion: activeOption.tentativeQuestion,
+          tentativeObjective: activeOption.tentativeObjective,
+          centralConcepts: activeOption.centralConcepts,
+          possibleContextPopulation: activeOption.possibleContextPopulation,
+          possibleContribution: activeOption.possibleContribution,
+          nextSteps: activeOption.nextSteps,
+          statusLabel: 'PROPUESTA SELECCIONADA POR EL ESTUDIANTE'
         },
-        perfil: {
-          arquetipo: {
-            nombre: activePerspective.archetype || 'Analista',
-            emoji: '🧠',
-            subtitulo: 'Perfil detectado por IA',
-            descripcion: activePerspective.whyExplanation || 'Perfil técnico'
-          },
-          puntaje_global: activePerspective.correspondenceScore || 80,
-          nivel_correspondencia: activePerspective.correspondenceLevel || 'Alta correspondencia',
-          experiencia_previa: p.researchExperience || '',
-          formacion_tecnica: p.techExperience || '',
-          familiaridad_ia: p.aiExperience || ''
-        },
-        intereses: {
-          curiosidades: Array.isArray(a.curiosityQuestions) ? a.curiosityQuestions : (a.curiosityQuestions || '').split('\n').filter(Boolean),
-          formas_de_investigar: Array.isArray(a.preferredActivities) ? a.preferredActivities : (a.preferredActivities || '').split(',').filter(Boolean),
-          continuidad: a.continuationPreference || ''
-        },
-        inquietud: {
-          problema: a.problemToInvestigate || '',
-          investigacion_sonada: a.dreamResearch || '',
-          meta_6_meses: a.sixMonthsDiscovery || '',
-          idea_divergente: a.divergentProjectIdea || ''
-        },
-        investigaciones_relacionadas: (activePerspective.relatedProjects || []).map((p: any) => ({
-          codigo: p.code,
-          titulo: p.title,
-          afinidad: 85,
-          porque_se_relaciona: p.description
-        })),
-        analisis: {
-          parrafos: [activePerspective.whyExplanation, activePerspective.shortDescription].filter(Boolean),
-          ruta: activePerspective.routeType || 'EXPLORAR',
-          descripcion_ruta: activeOption.whyThisOption
-        },
-        reporte_personalizado: {
-          saludo: `Hola ${p.name?.split(' ')[0] || 'Estudiante'}, revisamos tu perfil`,
-          donde_entrar: activeOption.tentativeObjective,
-          proyectos_participar: projectOptions.map(po => ({
-            projectCode: po.badge,
-            projectTitle: po.tentativeTitle,
-            whatYouCanDo: po.whyThisOption
-          }))
-        },
-        linea_sugerida: activePerspective.primaryLineName || '',
-        proximos_pasos: activeOption.nextSteps || []
+        proposedProjectOptions: projectOptions,
+        selectedProjectOptionId: selectedOptionId
       };
-
-      const html = getPdfHtml(data);
-      const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      
-      const printWindow = window.open(url, '_blank');
-      if (printWindow) {
-        printWindow.onload = () => {
-          setTimeout(() => {
-            printWindow.print();
-          }, 500);
-        };
-      }
+      await generatePDFReport(customAnalysis, { includeAdminSection: false });
     } catch (e) {
       console.error('Error generating PDF:', e);
     } finally {
@@ -373,6 +321,15 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
               <span>{downloadingFormat === 'docx' ? 'Generando DOCX...' : 'DOCX Editable'}</span>
             </button>
           </div>
+        </div>
+
+        {/* Aviso: el informe en PDF también se envió por correo */}
+        <div className="flex items-start gap-3 rounded-xl border-2 border-[#A7F3D0] bg-[#ECFDF5] px-4 py-3">
+          <CheckCircle className="w-5 h-5 text-[#059669] shrink-0 mt-0.5" />
+          <p className="text-xs md:text-sm text-[#065F46] leading-relaxed">
+            Ya enviamos tu <strong>informe en PDF</strong> al correo <strong>{analysis.studentProfile.email}</strong>.
+            Si no lo ves en tu bandeja de entrada en unos minutos, revisa también la carpeta de <strong>spam / no deseados</strong>.
+          </p>
         </div>
 
         {/* 2. SELECTOR DE LOS 3 PUNTOS DE VISTA */}
