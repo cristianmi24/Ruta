@@ -41,7 +41,7 @@ async function callProvider(name: Provider, messages: Message[]) {
       // Qwen3 en Groq razona antes de responder: se oculta para que el contenido sea solo el JSON.
       ...(name === 'groq' ? { reasoning_format: 'hidden' } : {})
     }),
-    // Un reporte completo tarda ~40-70 s en qwen-plus; vercel.json da 120 s a esta función.
+    // Un reporte completo tarda ~40-70 s en qwen-plus; vercel.json da 120 s a las funciones de /api.
     signal: AbortSignal.timeout(name === 'groq' ? 50_000 : 65_000)
   });
 

@@ -2,9 +2,6 @@
   "framework": "vite",
   "functions": {
     "api/**/*.ts": {
-      "maxDuration": 60
-    },
-    "api/qwen.ts": {
       "maxDuration": 120
     }
   },
