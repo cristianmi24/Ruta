@@ -35,7 +35,9 @@ import {
   AdminReview
 } from '../types';
 import { storageService } from '../services/storageService';
-import { generatePDFReport } from '../services/documentGenerator';
+import { generatePDFReport, generatePDFReportBase64 } from '../services/documentGenerator';
+import { researchAnalysisService } from '../services/aiService';
+import { saveRegeneratedReport } from '../services/apiClient';
 import { getProjectMethodology } from '../data/projectMetadata';
 import { AdminProjectModal } from './AdminProjectModal';
 import { AdminLineModal } from './AdminLineModal';
@@ -99,6 +101,42 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const [isSavingReview, setIsSavingReview] = useState(false);
 
+  // Regeneración con IA de reportes que quedaron pendientes (la IA falló cuando el estudiante hizo el test)
+  const [regenStatus, setRegenStatus] = useState<string | null>(null);
+  const [regenResult, setRegenResult] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const handleRegenerateReport = async () => {
+    if (!selectedAnalysis || regenStatus) return;
+    setRegenResult(null);
+    setRegenStatus('Generando el reporte con IA...');
+    try {
+      const result = await researchAnalysisService.augmentAnalysisWithAI(selectedAnalysis, projects, {
+        as: 'coordinator',
+        onStatus: setRegenStatus,
+        fallbackToLocal: false
+      });
+      setRegenStatus('Generando el PDF...');
+      const pdf = await generatePDFReportBase64(result).catch(err => {
+        console.warn('No se pudo generar el PDF del reporte regenerado:', err);
+        return undefined;
+      });
+      setRegenStatus('Guardando y enviando por correo...');
+      const { emailed } = await saveRegeneratedReport(result, pdf);
+      setSelectedAnalysis({ ...result, aiReportRegeneratedAt: new Date().toISOString() });
+      setRegenResult({
+        ok: true,
+        text: emailed
+          ? `Reporte regenerado con IA y enviado a ${selectedAnalysis.studentProfile.email}.`
+          : 'Reporte regenerado y guardado, pero no se pudo enviar el correo (revisa la configuración de Mailjet).'
+      });
+      onRefreshData();
+    } catch (err) {
+      setRegenResult({ ok: false, text: `No se pudo regenerar tras 3 intentos: ${(err as Error)?.message || err}. Inténtalo de nuevo en unos minutos.` });
+    } finally {
+      setRegenStatus(null);
+    }
+  };
+
   // URL → estado (al refrescar o con atrás/adelante)
   useEffect(() => {
     setActiveTab(initialTab);
@@ -137,6 +175,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // Update Review Form when selecting a student
   const handleSelectStudent = (analysis: AnalysisResult) => {
     setSelectedAnalysis(analysis);
+    setRegenResult(null);
     if (analysis.adminReview) {
       setReviewForm({ ...analysis.adminReview });
     } else {
@@ -400,6 +439,47 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <ArrowLeft className="w-4 h-4" />
             <span>Volver a la lista de estudiantes</span>
           </button>
+
+          {/* Reporte con IA pendiente: la IA falló cuando el estudiante hizo el test y recibió el reporte local */}
+          {(selectedAnalysis.aiReportStatus === 'pending' || regenResult) && (
+            <div
+              role="status"
+              className={`rounded-2xl border-2 p-4 md:p-5 flex flex-col md:flex-row md:items-center gap-4 ${
+                regenResult?.ok ? 'bg-[#ECFDF5] border-[#A7F3D0]' : 'bg-[#FFFBEB] border-[#FCD34D]'
+              }`}
+            >
+              <div className="flex-1 space-y-1">
+                {regenResult?.ok ? (
+                  <p className="text-sm font-bold text-[#065F46] flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4" /> {regenResult.text}
+                  </p>
+                ) : (
+                  <>
+                    <p className="text-sm font-bold text-[#92400E] flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4" /> El reporte con IA no se generó
+                    </p>
+                    <p className="text-xs text-[#78350F] leading-relaxed">
+                      Al hacer el test, la IA falló {selectedAnalysis.aiReportAttempts ? `tras ${selectedAnalysis.aiReportAttempts} intentos` : ''}
+                      {selectedAnalysis.aiReportError ? ` (${selectedAnalysis.aiReportError})` : ''} y el estudiante recibió el reporte local.
+                      Sus respuestas están guardadas: puedes regenerarlo y se le enviará por correo con el PDF.
+                    </p>
+                    {regenResult && !regenResult.ok && <p className="text-xs font-bold text-[#B91C1C]">{regenResult.text}</p>}
+                    {regenStatus && <p className="text-xs font-bold text-[#B45309]" aria-live="polite">{regenStatus}</p>}
+                  </>
+                )}
+              </div>
+              {!regenResult?.ok && (
+                <button
+                  onClick={handleRegenerateReport}
+                  disabled={!!regenStatus}
+                  className="cursor-pointer disabled:cursor-wait disabled:opacity-70 inline-flex items-center justify-center gap-2 text-xs font-bold px-4 py-2.5 rounded-xl bg-[#B45309] text-[#FFFDF9] hover:bg-[#92400E] transition-colors shadow-xs whitespace-nowrap"
+                >
+                  <RefreshCw className={`w-4 h-4 ${regenStatus ? 'animate-spin' : ''}`} />
+                  {regenStatus ? 'Regenerando...' : 'Regenerar y enviar por correo'}
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Respuestas completas y reporte de Qwen */}
           <AnalysisFullDetails analysis={selectedAnalysis} projects={projects} />
@@ -1090,7 +1170,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       return (
                         <tr key={a.id} className="hover:bg-[#F7F3ED] transition-colors">
                           <td className="py-3.5 px-4 font-bold text-[#1C2624]">
-                            <div>{a.studentProfile.name}</div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span>{a.studentProfile.name}</span>
+                              {a.aiReportStatus === 'pending' && (
+                                <span
+                                  title="La IA falló al generar su reporte; se puede regenerar desde el detalle"
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold border bg-[#FFFBEB] text-[#B45309] border-[#FCD34D]"
+                                >
+                                  <AlertTriangle className="w-3 h-3" /> IA pendiente
+                                </span>
+                              )}
+                            </div>
                             <div className="text-[11px] text-[#3F4E4C] font-normal">
                               {a.studentProfile.email}
                               {a.studentProfile.phone && ` · Tel: ${a.studentProfile.phone}`}

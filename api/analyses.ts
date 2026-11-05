@@ -10,7 +10,7 @@ import {
   HttpError
 } from './_lib/server.js';
 import { sendBrandedMail } from './_lib/brandedMail.js';
-import { studentSubmissionEmailHtml, coordinatorDecisionEmailHtml } from './_lib/emailTemplates.js';
+import { studentSubmissionEmailHtml, coordinatorDecisionEmailHtml, regeneratedReportEmailHtml } from './_lib/emailTemplates.js';
 
 type AnyAnalysis = Record<string, any>;
 
@@ -86,6 +86,61 @@ export const GET = handle(async req => {
     return { ...r.payload, studentProfile: profile, studentAnswers: { ...r.payload.studentAnswers, profile } };
   });
   return json({ analyses });
+});
+
+/**
+ * PUT /api/analyses — la coordinación guarda el reporte regenerado con IA de un análisis que quedó
+ * pendiente (la IA falló al hacer el test) y se lo envía al estudiante por correo con el PDF adjunto.
+ */
+export const PUT = handle(async req => {
+  requireCoordinator(req);
+  const { analysis, reportPdfBase64, reportFilename } = await readJson<{
+    analysis?: AnyAnalysis;
+    reportPdfBase64?: string;
+    reportFilename?: string;
+  }>(req, 8_000_000);
+  if (!analysis || typeof analysis.id !== 'string' || !analysis.qwenAnalysis) throw new HttpError(400, 'Análisis inválido.');
+  if (analysis.aiReportStatus !== 'ai') throw new HttpError(400, 'El reporte no fue generado por la IA.');
+
+  const rows = (await db()`SELECT payload, student_name, email_enc FROM analyses WHERE id = ${analysis.id}`) as {
+    payload: AnyAnalysis;
+    student_name: string;
+    email_enc: string | null;
+  }[];
+  if (!rows.length) throw new HttpError(404, 'No se encontró el análisis.');
+  const current = rows[0].payload;
+
+  // Solo se reemplaza el contenido generado; las respuestas del estudiante y la revisión de coordinación se conservan.
+  const updated = {
+    ...current,
+    algorithmVersion: analysis.algorithmVersion,
+    qwenAnalysis: analysis.qwenAnalysis,
+    proposedProject: analysis.proposedProject ?? current.proposedProject,
+    aiReportStatus: 'ai',
+    aiReportError: null,
+    aiReportAttempts: analysis.aiReportAttempts ?? null,
+    aiReportRegeneratedAt: new Date().toISOString()
+  };
+  await db()`UPDATE analyses SET payload = ${JSON.stringify(stripPII(updated))}::jsonb, updated_at = NOW() WHERE id = ${analysis.id}`;
+
+  let emailed = false;
+  const email = decryptPII(rows[0].email_enc);
+  if (email) {
+    try {
+      emailed = await sendBrandedMail({
+        to: email,
+        toName: rows[0].student_name,
+        subject: 'Tu reporte completo de la Ruta Investigativa · Semillero LabSIE',
+        html: regeneratedReportEmailHtml({ studentName: rows[0].student_name, primaryLineName: current.primaryLineName }),
+        attachments: reportPdfBase64
+          ? [{ filename: reportFilename || 'Informe_LabSIE.pdf', contentType: 'application/pdf', base64: reportPdfBase64 }]
+          : undefined
+      });
+    } catch (err) {
+      console.error('[analyses] no se pudo enviar el reporte regenerado:', err);
+    }
+  }
+  return json({ ok: true, emailed });
 });
 
 interface AdminReviewPayload {

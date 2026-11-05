@@ -251,6 +251,12 @@ export interface AnalysisResult {
     warmLetter?: string[];
   };
   consentToken?: string; // JWT de aceptación de términos (tratamiento de datos)
+  /** 'ai' = reporte generado por el modelo; 'pending' = la IA falló y se entregó el reporte local (regenerable desde el panel). */
+  aiReportStatus?: 'ai' | 'pending';
+  aiReportError?: string;
+  aiReportAttempts?: number;
+  /** Fecha en que la coordinación regeneró el reporte con IA y lo envió al estudiante. */
+  aiReportRegeneratedAt?: string;
 }
 
 export interface AdminReview {

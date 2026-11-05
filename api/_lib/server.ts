@@ -17,7 +17,8 @@ export function db() {
 
 // ---------- Respuestas HTTP ----------
 export class HttpError extends Error {
-  constructor(public status: number, message: string) {
+  /** `extra` se agrega al cuerpo JSON de la respuesta (p. ej. { retryAfter } en un 429). */
+  constructor(public status: number, message: string, public extra?: Record<string, unknown>) {
     super(message);
   }
 }
@@ -35,7 +36,7 @@ export function handle(fn: (req: Request) => Promise<Response>) {
     try {
       return await fn(req);
     } catch (err) {
-      if (err instanceof HttpError) return json({ error: err.message }, err.status);
+      if (err instanceof HttpError) return json({ ...err.extra, error: err.message }, err.status);
       console.error('[api]', err);
       return json({ error: 'Error interno del servidor.' }, 500);
     }

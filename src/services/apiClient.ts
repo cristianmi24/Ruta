@@ -40,6 +40,13 @@ const isExpired = (token: string | null) => {
   return !exp || exp * 1000 < Date.now();
 };
 
+/** Error de la API con el código HTTP y, en un 429, cuántos segundos esperar antes de reintentar. */
+export class ApiError extends Error {
+  constructor(message: string, public status: number, public retryAfter?: number) {
+    super(message);
+  }
+}
+
 async function request<T>(path: string, init: RequestInit = {}, auth?: 'coordinator' | 'consent'): Promise<T> {
   const headers = new Headers(init.headers);
   if (init.body) headers.set('Content-Type', 'application/json');
@@ -55,7 +62,8 @@ async function request<T>(path: string, init: RequestInit = {}, auth?: 'coordina
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     if (res.status === 401 && auth === 'coordinator') write(sessionStorage, COORDINATOR_TOKEN_KEY, null);
-    throw new Error((data as { error?: string }).error || `Error HTTP ${res.status}`);
+    const { error, retryAfter } = data as { error?: string; retryAfter?: number };
+    throw new ApiError(error || `Error HTTP ${res.status}`, res.status, typeof retryAfter === 'number' ? retryAfter : undefined);
   }
   return data as T;
 }
@@ -141,8 +149,20 @@ export function deleteCatalogItem(kind: 'project' | 'line', id: string) {
 }
 
 // ---------- Qwen (vía servidor) ----------
-export function askQwen(messages: { role: 'system' | 'user'; content: string }[]) {
-  return request<{ model: string; content: string }>('/api/qwen', { method: 'POST', body: JSON.stringify({ messages }) }, 'consent');
+export function askQwen(
+  messages: { role: 'system' | 'user'; content: string }[],
+  as: 'consent' | 'coordinator' = 'consent'
+) {
+  return request<{ model: string; content: string }>('/api/qwen', { method: 'POST', body: JSON.stringify({ messages }) }, as);
+}
+
+/** Coordinación: guarda el reporte regenerado con IA y se lo envía al estudiante por correo (PDF adjunto). */
+export function saveRegeneratedReport(analysis: AnalysisResult, report?: { base64: string; filename: string }) {
+  return request<{ ok: true; emailed: boolean }>(
+    '/api/analyses',
+    { method: 'PUT', body: JSON.stringify({ analysis, reportPdfBase64: report?.base64, reportFilename: report?.filename }) },
+    'coordinator'
+  );
 }
 
 // ---------- Coordinadores ----------

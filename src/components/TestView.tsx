@@ -565,7 +565,8 @@ export const TestView: React.FC<TestViewProps> = ({
     let finalResult = baseResult;
     try {
       setAnalysisStatusText('Generando análisis y contraste científico mediante Qwen LLM...');
-      finalResult = await researchAnalysisService.augmentAnalysisWithAI(baseResult, projects);
+      // Hasta 3 intentos (esperando lo que pida el proveedor si está saturado); si no, reporte local marcado como pendiente.
+      finalResult = await researchAnalysisService.augmentAnalysisWithAI(baseResult, projects, { onStatus: setAnalysisStatusText });
     } catch (e) {
       console.warn('AI layer fallback:', e);
     }

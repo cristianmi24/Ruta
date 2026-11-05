@@ -122,6 +122,25 @@ export function studentSubmissionEmailHtml(opts: { studentName: string; routeTyp
   return emailShell('Recibimos tu Ruta Investigativa · Tu informe en PDF va adjunto', body);
 }
 
+/** Correo al estudiante cuando la coordinación regenera con IA su reporte (que antes salió en versión local). */
+export function regeneratedReportEmailHtml(opts: { studentName: string; primaryLineName?: string }): string {
+  const firstName = escapeHtml((opts.studentName || '').trim().split(' ')[0] || 'futuro investigador');
+  const lineName = opts.primaryLineName ? escapeHtml(opts.primaryLineName) : '';
+  const body = `
+    <h1 style="margin:0 0 14px;font-size:21px;color:#1C2624;font-family:Georgia,'Lora',serif;">¡Hola, ${firstName}! Tu reporte completo está listo ✨</h1>
+    <p style="margin:0 0 14px;font-size:14px;line-height:1.6;color:#24302F;">
+      Cuando completaste tu <strong>Ruta Investigativa</strong> había mucha demanda y te enviamos una versión preliminar de tu informe.
+      Ya generamos tu <strong>reporte completo y personalizado</strong>, contrastado con los proyectos de LabSIE${lineName ? ` y la línea <strong>${lineName}</strong>` : ''}.
+      Lo encontrarás adjunto en PDF.
+    </p>
+    <p style="margin:0 0 4px;font-size:13.5px;line-height:1.6;color:#4C5956;">
+      Tus respuestas siguen registradas y la coordinación del semillero te escribirá a este mismo correo con su respuesta.
+    </p>
+    ${button('https://edutlan.online', 'Visitar edutlan.online')}
+  `;
+  return emailShell('Tu reporte completo de la Ruta Investigativa ya está listo', body);
+}
+
 /** Correo al estudiante cuando la coordinación guarda su revisión/respuesta sobre su Ruta. */
 export function coordinatorDecisionEmailHtml(opts: {
   studentName: string;

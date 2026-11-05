@@ -1,5 +1,22 @@
 import { AnalysisResult, TestAnswers, ResearchProject } from '../types';
-import { askQwen } from './apiClient';
+import { ApiError, askQwen } from './apiClient';
+
+const MAX_AI_ATTEMPTS = 3;
+
+export interface AugmentOptions {
+  /** 'consent' = estudiante haciendo el test; 'coordinator' = regeneración desde el panel. */
+  as?: 'consent' | 'coordinator';
+  /** Mensajes de progreso para la interfaz (p. ej. "Reintentando en 20 s..."). */
+  onStatus?: (text: string) => void;
+  /** true (por defecto): si la IA falla, devuelve el reporte local marcado como pendiente. false: lanza el error. */
+  fallbackToLocal?: boolean;
+}
+
+/** Se reintenta ante saturación (429), errores del proveedor (5xx), fallos de red o JSON inválido. */
+function isRetryable(err: unknown): boolean {
+  if (err instanceof ApiError) return err.status === 429 || (err.status >= 500 && err.status !== 503);
+  return true;
+}
 
 /**
  * QwenResearchAnalysisService
@@ -15,17 +32,47 @@ class QwenResearchAnalysisService {
    */
   public async augmentAnalysisWithAI(
     baseResult: AnalysisResult,
-    projects: ResearchProject[]
+    projects: ResearchProject[],
+    options: AugmentOptions = {}
   ): Promise<AnalysisResult> {
-    const answers = baseResult.studentAnswers;
-    const profile = baseResult.studentProfile;
-    try {
-      const qwenResult = await this.callQwenAPI(baseResult, projects, answers, profile);
-      if (qwenResult) return qwenResult;
-    } catch (err) {
-      console.warn('Qwen no disponible, se usa el reporte local:', err);
+    const { as = 'consent', onStatus, fallbackToLocal = true } = options;
+    // Al regenerar desde el panel se parte de un análisis ya guardado: se limpia su sufijo de versión.
+    const base = { ...baseResult, algorithmVersion: String(baseResult.algorithmVersion || '').split('+')[0] };
+    const answers = base.studentAnswers;
+    const profile = base.studentProfile;
+
+    let lastError: unknown;
+    for (let attempt = 1; attempt <= MAX_AI_ATTEMPTS; attempt++) {
+      try {
+        if (attempt > 1) onStatus?.(`Generando tu reporte con IA (intento ${attempt} de ${MAX_AI_ATTEMPTS})...`);
+        const qwenResult = await this.callQwenAPI(base, projects, answers, profile, as);
+        if (qwenResult) return { ...qwenResult, aiReportStatus: 'ai', aiReportError: undefined, aiReportAttempts: attempt };
+        lastError = new Error('El modelo devolvió una respuesta vacía.');
+      } catch (err) {
+        lastError = err;
+        console.warn(`Intento ${attempt}/${MAX_AI_ATTEMPTS} con la IA falló:`, err);
+      }
+      if (attempt === MAX_AI_ATTEMPTS || !isRetryable(lastError)) break;
+
+      // 429: el proveedor dice cuánto esperar (en Groq gratis ≈ 1 reporte por minuto). Otros errores: pausa corta.
+      const busy = lastError instanceof ApiError && lastError.status === 429;
+      const waitSec = busy ? Math.min(Math.max((lastError as ApiError).retryAfter ?? 30, 3) + 2, 75) : 5;
+      const why = busy ? 'Hay muchas personas generando su reporte en este momento.' : 'La IA no respondió bien.';
+      for (let left = waitSec; left > 0; left--) {
+        onStatus?.(`${why} Reintentando en ${left} s (intento ${attempt + 1} de ${MAX_AI_ATTEMPTS})...`);
+        await new Promise(r => setTimeout(r, 1000));
+      }
     }
-    return this.generateAutonomousQwenContrast(baseResult, projects, answers, profile);
+
+    const reason = lastError instanceof Error ? lastError.message : String(lastError);
+    if (!fallbackToLocal) throw lastError instanceof Error ? lastError : new Error(reason);
+    console.warn('IA no disponible tras los reintentos, se usa el reporte local:', lastError);
+    return {
+      ...this.generateAutonomousQwenContrast(base, projects, answers, profile),
+      aiReportStatus: 'pending',
+      aiReportError: reason,
+      aiReportAttempts: MAX_AI_ATTEMPTS
+    };
   }
 
   /**
@@ -36,7 +83,8 @@ class QwenResearchAnalysisService {
     baseResult: AnalysisResult,
     projects: ResearchProject[],
     answers: TestAnswers,
-    profile: any
+    profile: any,
+    as: 'consent' | 'coordinator' = 'consent'
   ): Promise<AnalysisResult | null> {
     const firstName = String(profile.name || '').trim().split(/\s+/)[0] || 'futuro semillerista';
     const list = (v?: string[]) => (v && v.length ? v.join(', ') : 'Sin respuesta');
@@ -124,22 +172,32 @@ Responde ÚNICAMENTE con JSON válido, sin markdown, con esta estructura:
           'Eres la mentora investigativa del Semillero LabSIE (Grupo EduTLAN, Universidad de Córdoba). Escribes en español de Colombia, con calidez y rigor. Solo citas proyectos que existen en el catálogo recibido. Respondes exclusivamente con JSON válido.'
       },
       { role: 'user', content: prompt }
-    ]);
+    ], as);
     if (!rawContent) return null;
 
-    const cleanJson = rawContent.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
+    const stripped = rawContent
+      .replace(/<think>[\s\S]*?<\/think>/gi, '') // por si el proveedor deja el razonamiento de Qwen3 en el texto
+      .trim()
+      .replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim();
+    const start = stripped.indexOf('{');
+    const end = stripped.lastIndexOf('}');
+    const cleanJson = start >= 0 && end > start ? stripped.slice(start, end + 1) : stripped;
     const parsed = JSON.parse(cleanJson);
 
     // Solo se aceptan códigos que existen en el catálogo (evita proyectos inventados por el modelo)
+    // El modelo a veces devuelve el código como en el catálogo, con corchetes: "[LABSIE-P06]".
+    const normCode = (c: unknown) => String(c ?? '').replace(/[[\]\s]/g, '').toUpperCase();
     const validCodes = new Set(projects.map(p => p.code));
     const titleOf = (code: string, fallbackTitle: string) => projects.find(p => p.code === code)?.title || fallbackTitle;
     const projectsYouCanDo = Array.isArray(parsed.projectsYouCanDo)
       ? parsed.projectsYouCanDo
+          .map((p: any) => p && { ...p, projectCode: normCode(p.projectCode) })
           .filter((p: any) => p && validCodes.has(p.projectCode))
           .map((p: any) => ({ projectCode: p.projectCode, projectTitle: titleOf(p.projectCode, p.projectTitle), whatYouCanDo: String(p.whatYouCanDo || '') }))
       : [];
     const topMatchingProjects = Array.isArray(parsed.topMatchingProjects)
       ? parsed.topMatchingProjects
+          .map((p: any) => p && { ...p, projectCode: normCode(p.projectCode) })
           .filter((p: any) => p && validCodes.has(p.projectCode))
           .map((p: any) => ({ projectCode: p.projectCode, projectTitle: titleOf(p.projectCode, p.projectTitle), matchRationale: String(p.matchRationale || '') }))
       : [];
